@@ -1,0 +1,312 @@
+import os
+import sys
+import json
+import re
+import requests
+from dotenv import load_dotenv
+from refine_agents import refine_segment, validate_places
+
+sys.stdout.reconfigure(encoding="utf-8")
+
+load_dotenv()
+
+FANAR_KEY = os.getenv("FANAR_API_KEY")
+BASE = "https://api.fanar.qa/v1"
+
+AUTH = {"Authorization": f"Bearer {FANAR_KEY}"}
+AUTH_JSON = {**AUTH, "Content-Type": "application/json"}
+
+WORDS_PER_CHUNK = 150  # stay well under 4k-word translation cap
+
+# ── Step 1: Transcribe ──────────────────────────────────────────────────────
+
+def transcribe(file_path: str) -> dict:
+    with open(file_path, "rb") as f:
+        resp = requests.post(
+            f"{BASE}/audio/transcriptions",
+            headers=AUTH,
+            files={"file": (os.path.basename(file_path), f, "video/mp4")},
+            data={"model": "Fanar-Aura-STT-LF-1", "format": "json"},
+            timeout=120,
+        )
+    resp.raise_for_status()
+    raw = resp.json()
+    # Fanar returns {"id": "...", "json": {"segments": [...]}}
+    segments = raw.get("json", {}).get("segments", [])
+    full_text = " ".join(s["text"].strip() for s in segments)
+    return {"id": raw.get("id"), "text": full_text, "segments": segments}
+
+
+# ── Step 2: Chunk raw STT segments ─────────────────────────────────────────
+
+def chunk_segments(raw_segments: list) -> list:
+    chunks, buf_text, buf_words = [], [], 0
+    chunk_start = chunk_end = None
+
+    for seg in raw_segments:
+        words = len(seg["text"].split())
+        if chunk_start is None:
+            chunk_start = seg["start_time"]
+        buf_text.append(seg["text"].strip())
+        buf_words += words
+        chunk_end = seg["end_time"]
+
+        if buf_words >= WORDS_PER_CHUNK:
+            chunks.append({"start": chunk_start, "end": chunk_end, "arabic": " ".join(buf_text)})
+            buf_text, buf_words, chunk_start = [], 0, None
+
+    if buf_text:
+        chunks.append({"start": chunk_start, "end": chunk_end, "arabic": " ".join(buf_text)})
+
+    return chunks
+
+
+# ── Step 3: Translate segment ───────────────────────────────────────────────
+
+def translate(arabic: str) -> str:
+    resp = requests.post(
+        f"{BASE}/translations",
+        headers=AUTH_JSON,
+        json={"model": "Fanar-Shaheen-MT-1", "text": arabic, "langpair": "ar-en", "preprocessing": "default"},
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.json()["text"]
+
+
+# ── Step 4: Extract metadata per segment ────────────────────────────────────
+
+EXTRACT_PROMPT = """You are a Lebanese oral history archivist.
+Return ONLY valid JSON — no markdown, no explanation.
+{
+  "places": ["place names mentioned"],
+  "people": ["person names or roles mentioned"],
+  "themes": ["e.g. agriculture, displacement, marriage"],
+  "keywords_ar": ["Arabic keywords"],
+  "keywords_en": ["English keywords"]
+}"""
+
+def extract(arabic: str, english: str) -> dict:
+    resp = requests.post(
+        f"{BASE}/chat/completions",
+        headers=AUTH_JSON,
+        json={
+            "model": "Fanar-C-2-27B",
+            "messages": [
+                {"role": "system", "content": EXTRACT_PROMPT},
+                {"role": "user", "content": f"Arabic:\n{arabic}\n\nEnglish:\n{english}"},
+            ],
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    raw = resp.json()["choices"][0]["message"]["content"]
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        return json.loads(m.group()) if m else {"_raw": raw}
+
+
+# ── Step 5: Summarize full interview ────────────────────────────────────────
+
+SUMMARY_PROMPT = """You are a Lebanese oral history archivist.
+Return ONLY valid JSON — no markdown, no explanation.
+{
+  "summary_en": "2–4 sentence summary in English",
+  "summary_ar": "2–4 sentence summary in Arabic",
+  "places": ["all places mentioned across the interview"],
+  "people": ["all people mentioned"],
+  "themes": ["overall themes of the interview"]
+}"""
+
+def summarize(full_arabic: str) -> dict:
+    resp = requests.post(
+        f"{BASE}/chat/completions",
+        headers=AUTH_JSON,
+        json={
+            "model": "Fanar-C-2-27B",
+            "messages": [
+                {"role": "system", "content": SUMMARY_PROMPT},
+                {"role": "user", "content": f"Full Arabic transcript:\n{full_arabic}"},
+            ],
+        },
+        timeout=90,
+    )
+    resp.raise_for_status()
+    raw = resp.json()["choices"][0]["message"]["content"]
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        return json.loads(m.group()) if m else {"_raw": raw}
+
+
+# ── Routing: match extracted places to Lebanese cadasters ──────────────────
+
+def load_cadasters(geojson_path: str) -> list:
+    with open(geojson_path, encoding="utf-8") as f:
+        data = json.load(f)
+    cadasters = []
+    for feat in data.get("features", []):
+        p = feat["properties"]
+        if p.get("admin_level") == 3:
+            cadasters.append({
+                "id": p.get("adm3_pcode") or p.get("adm3_name"),
+                "name_en": p.get("name", ""),
+                "name_ar": p.get("name1", ""),
+            })
+    return cadasters
+
+
+ROUTE_PROMPT = """You are routing a Lebanese oral history interview to the correct Lebanese cadaster (Admin-3).
+Given candidate cadasters and interview context, pick the best match.
+Return ONLY valid JSON:
+{"cadaster_id": "...", "cadaster_name_en": "...", "confidence": "high|medium|low", "reason": "one sentence"}
+If no cadaster fits well, set confidence to "low" and cadaster_id to null."""
+
+def route(places: list, segments: list, cadasters: list) -> dict:
+    # Exact / substring name match first
+    candidates = []
+    for place in places:
+        pl = place.lower()
+        for cad in cadasters:
+            if pl in (cad["name_en"] or "").lower() or (cad["name_en"] or "").lower() in pl or place in (cad["name_ar"] or ""):
+                candidates.append(cad)
+
+    seen = set()
+    candidates = [c for c in candidates if not (c["id"] in seen or seen.add(c["id"]))]
+
+    if not candidates:
+        return {"status": "no_match", "extracted_places": places}
+
+    if len(candidates) == 1:
+        return {
+            "status": "matched",
+            "cadaster_id": candidates[0]["id"],
+            "cadaster_name_en": candidates[0]["name_en"],
+            "confidence": "high",
+        }
+
+    # Ambiguous → agent decides
+    context = "\n".join(f"[{s['start']:.1f}s] {s['arabic']}" for s in segments[:6])
+    cand_list = "\n".join(f"- {c['id']}: {c['name_en']} / {c['name_ar']}" for c in candidates)
+
+    resp = requests.post(
+        f"{BASE}/chat/completions",
+        headers=AUTH_JSON,
+        json={
+            "model": "Fanar-C-2-27B",
+            "messages": [
+                {"role": "system", "content": ROUTE_PROMPT},
+                {
+                    "role": "user",
+                    "content": f"Extracted places: {places}\n\nCandidates:\n{cand_list}\n\nInterview context:\n{context}",
+                },
+            ],
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    raw = resp.json()["choices"][0]["message"]["content"]
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", raw, re.DOTALL)
+        result = json.loads(m.group()) if m else {"_raw": raw}
+
+    result["status"] = "agent_routed" if result.get("confidence") in ("high", "medium") else "needs_review"
+    return result
+
+
+# ── Main pipeline ───────────────────────────────────────────────────────────
+
+def run_pipeline(
+    video_path: str,
+    contributor_name: str = None,
+    claimed_village: str = None,
+    claimed_year: str = None,
+    cadaster_geojson: str = None,
+):
+    print(f"\n{'='*60}\nPIPELINE: {video_path}\n{'='*60}")
+
+    # Step 1
+    print("\n[1/5] Transcribing...")
+    stt = transcribe(video_path)
+    full_arabic = stt.get("text", "")
+    raw_segs = stt.get("segments", [])
+    print(f"      {len(full_arabic.split())} words | {len(raw_segs)} raw STT segments")
+    print(f"\n--- TRANSCRIPT PREVIEW ---\n{full_arabic[:400]}...\n")
+
+    # Step 2
+    print("[2/5] Chunking...")
+    segments = chunk_segments(raw_segs)
+    print(f"      {len(segments)} chunks")
+
+    # Steps 3 + 4
+    print(f"\n[3+4/5] Translating + extracting ({len(segments)} segments)...")
+    all_places = []
+    for i, seg in enumerate(segments):
+        print(f"  [{i+1}/{len(segments)}] {seg['start']:.1f}s – {seg['end']:.1f}s")
+        draft_en = translate(seg["arabic"])
+        ref = refine_segment(seg["arabic"], draft_en)
+        seg["arabic_raw"]   = seg["arabic"]
+        seg["arabic"]       = ref["arabic_clean"]
+        seg["english"]      = ref["english"]
+        seg["corrections"]  = ref["corrections"]
+        meta = extract(seg["arabic"], seg["english"])
+        seg["places"]      = meta.get("places", [])
+        seg["people"]      = meta.get("people", [])
+        seg["themes"]      = meta.get("themes", [])
+        seg["keywords_ar"] = meta.get("keywords_ar", [])
+        seg["keywords_en"] = meta.get("keywords_en", [])
+        all_places.extend(seg["places"])
+        print(f"         places={seg['places']} themes={seg['themes']}")
+
+    # Step 5
+    print("\n[5/5] Summarizing...")
+    summary = summarize(full_arabic)
+    print(f"\n--- SUMMARY ---\n{summary.get('summary_en', summary)}\n")
+
+    # Routing
+    routing = None
+    if cadaster_geojson and os.path.exists(cadaster_geojson):
+        print("[+] Routing to Lebanese cadaster...")
+        context = " ".join(s["arabic"] for s in segments[:4])
+        val = validate_places(claimed_village, all_places, context)
+        anchor = ([val["primary_anchor"]] if val.get("primary_anchor")
+                  else val.get("lebanese_localities") or list(dict.fromkeys(all_places)))
+        cadasters = load_cadasters(cadaster_geojson)
+        routing = route(anchor, segments, cadasters)
+        routing["place_validation"] = val
+        print(f"    status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
+
+    full_english = " ".join(s["english"] for s in segments if s.get("english"))
+
+    interview = {
+        "contributor": contributor_name,
+        "claimed_village": claimed_village,
+        "claimed_year": claimed_year,
+        "status": "needs_review" if (routing or {}).get("status") == "needs_review" else "processing",
+        "full_arabic_transcript": full_arabic,
+        "full_english_transcript": full_english,
+        "summary": summary,
+        "routing": routing,
+        "segments": segments,
+    }
+
+    out = video_path.rsplit(".", 1)[0] + "_output.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(interview, f, ensure_ascii=False, indent=2)
+    print(f"\nSaved → {out}")
+    return interview
+
+
+if __name__ == "__main__":
+    run_pipeline(
+        video_path="namliyeh_clip.mp4",
+        contributor_name="Test Contributor",
+        claimed_village="none",
+        claimed_year="none",
+        cadaster_geojson="lbn_admin_boundaries.geojson/lbn_adminpoints.geojson",
+    )

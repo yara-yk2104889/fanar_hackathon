@@ -1,0 +1,265 @@
+{
+  "contributor": "Test Contributor",
+  "claimed_village": "none",
+  "claimed_year": "none",
+  "status": "processing",
+  "full_arabic_transcript": "سعيدة وأهل وسهلا فيكم بيوم جديد من برنامج العودة الى النملية اليوم الوجهة الجنوبية علي منطقة حدودية بين لبنان وفلسطين المحتله وشو في احلي من الجنوب وطلي علي مدينة بنت جبيل اليوم اللمسات الجنوبيهة والبنت جبيلية راح تصنعنا اكتر من شغله بينات كمنت البنددوروره الفراكة الافريقييكي وغيرها من وغيرها من الأشياء نتعلمها اليوم من هذه المنطقة جميلةة و الوجهة الرائعة لبنان الرائع خليكم معنا حلقةتاخد العقل ضمن مشوارنا على بلدة بنت جبيل او على مدينة بنت جبيل المعروفة جدا عنا ميول صغيرة بدنا نعملها عن حجم دللان غرفة العمليات الصغيرة اللي بتنتج الصاج يعني نحن كذا حلقة قبل حكينا عن الصاج ولكن دائما ولكن دائما يهمني بكل ضيعة وبكل منطقة نكون فيها كل مدينة عم نكون فيها نشوف كيف طريقته لصناعة الصاج الخبز الصحي جدا نذكر ضروريستعمله ويكون بديل عن الخبز الأبيض ل حجم الأضرار بيسببها الخبز الأبيض هلا ما بدنا نعمل اي سيء للخبز الأبيض ولكن الصاج دايما هو البديل الافضل لمائدتنا ووطعامنا بلبنان بدي أرحب بالحجم مالانان هلا حجم ان اهلا وسهلا فيك شرفتيننا نورتين ببرنامج العود برنامج عودي إلى النمل خمس سنين معيش اخذت قرار انك تعمل نخبز نحط بالبيت صرتحس أن الناس بتحبتعرف المعيش المعيشه كيف عشان هيك قررت الناس برافو صار عندك زبونات بعلبات يعني بالبيت بيجوا لعندك بياخذوهاليفون بيبوسوصلون بياخدون عال يعني بدناقد عشر حبات عشرين حب اخره العجة تبع شو المزيجي تستعمل هو تستعمللطحين أسمار قليل كتير أبيض بحط اربع ات أسار بحط واحد صغير أبيض ريف ملح وملح عظيم مرتين من قبل جربت اني جون وما كانت عم تبط معي",
+  "summary": {
+    "summary_en": "The episode focuses on visiting Bint Jbeil, a southern border town between Lebanon and occupied Palestine. The host explores local traditions and crafts like making saj bread using whole wheat flour instead of white flour for healthier alternatives.",
+    "summary_ar": "الحلقة تركز على زيارة بنت جبيل، وهي بلدة جنوبية حدودية بين لبنان وفلسطين المحتلة. يستكشف المضيف التقاليد والحرف المحلية مثل صنع خبز الصاج باستخدام الدقيق الكامل بدلًا من الدقيق الأبيض للحصول على خيارات صحية أكثر.",
+    "places": [
+      "Bint Jbeil (Lebanon)",
+      "Southern Border Region (Lebanon/Palestine)"
+    ],
+    "people": [],
+    "themes": [
+      "Local Traditions",
+      "Craftsmanship",
+      "Healthy Food Alternatives"
+    ]
+  },
+  "routing": {
+    "cadaster_id": "72111",
+    "cadaster_name_en": "Bent Jbayl",
+    "confidence": "high",
+    "reason": "The interviewee explicitly mentions 'مدينة بنت جبيل' which directly corresponds to the administrative division of Bent Jbayl.",
+    "status": "agent_routed",
+    "place_validation": {
+      "candidates": [
+        {
+          "name": "none",
+          "type": "other",
+          "is_place": false
+        },
+        {
+          "name": "لبنان",
+          "type": "country_or_region",
+          "is_place": true
+        },
+        {
+          "name": "فلسطين المحتلة",
+          "type": "country_or_region",
+          "is_place": true
+        },
+        {
+          "name": "بنت جبيل",
+          "type": "lebanese_locality",
+          "is_place": true
+        },
+        {
+          "name": "النملية",
+          "type": "program_or_title",
+          "is_place": false
+        },
+        {
+          "name": "البيت",
+          "type": "object_or_food",
+          "is_place": false
+        }
+      ],
+      "lebanese_localities": [
+        "بنت جبيل"
+      ],
+      "primary_anchor": "بنت جبيل",
+      "reason": "The primary focus of the interview is on Bint Jbeil, which is mentioned multiple times in relation to local traditions and practices."
+    }
+  },
+  "segments": [
+    {
+      "start": 31.16,
+      "end": 116.92,
+      "arabic": "سعيدة وأهلا وسهلا بكم في يوم جديد من برنامج العودة إلى النملية، اليوم الوجهة جنوبية على منطقة حدودية بين لبنان وفلسطين المحتلة، وما أحلى من الجنوب ونظرة على مدينة بنت جبيل. اليوم، اللمسات الجنوبية والبنت جبيلية ستصنع لنا أكثر من شيء، مثل بندورة الفراكة الأفريقية وغيرها من الأشياء التي سنتعلمها اليوم من هذه المنطقة الجميلة والوجهة الرائعة لبنان الرائع. ابقوا معنا لحلقة تأخذ العقل ضمن رحلتنا إلى بلدة بنت جبيل أو مدينة بنت جبيل المعروفة جدًا لدينا. هناك ميل صغير نريد أن نتحدث عنه حول حجم غرفة العمليات الصغيرة التي تنتج الصاج، أي أننا تحدثنا في الحلقة السابقة عن الصاج، لكن دائمًا يهمني في كل ضيعة وكل منطقة نكون فيها، وفي كل مدينة نكون فيها، أن نرى كيفية صنعهم للصاج، وهو خبز صحي جدًا يجب استخدامه كبديل عن الخبز الأبيض بسبب الضرر الذي يسببه الخبز الأبيض. لا نريد أن نقول شيئًا سلبيًا عن الخبز الأبيض، لكن الصاج دائمًا هو البديل الأفضل لطاولتنا ولطعامنا في لبنان.",
+      "arabic_raw": "سعيدة وأهل وسهلا فيكم بيوم جديد من برنامج العودة الى النملية اليوم الوجهة الجنوبية علي منطقة حدودية بين لبنان وفلسطين المحتله وشو في احلي من الجنوب وطلي علي مدينة بنت جبيل اليوم اللمسات الجنوبيهة والبنت جبيلية راح تصنعنا اكتر من شغله بينات كمنت البنددوروره الفراكة الافريقييكي وغيرها من وغيرها من الأشياء نتعلمها اليوم من هذه المنطقة جميلةة و الوجهة الرائعة لبنان الرائع خليكم معنا حلقةتاخد العقل ضمن مشوارنا على بلدة بنت جبيل او على مدينة بنت جبيل المعروفة جدا عنا ميول صغيرة بدنا نعملها عن حجم دللان غرفة العمليات الصغيرة اللي بتنتج الصاج يعني نحن كذا حلقة قبل حكينا عن الصاج ولكن دائما ولكن دائما يهمني بكل ضيعة وبكل منطقة نكون فيها كل مدينة عم نكون فيها نشوف كيف طريقته لصناعة الصاج الخبز الصحي جدا نذكر ضروريستعمله ويكون بديل عن الخبز الأبيض ل حجم الأضرار بيسببها الخبز الأبيض هلا ما بدنا نعمل اي سيء للخبز الأبيض ولكن الصاج دايما هو البديل الافضل لمائدتنا ووطعامنا بلبنان",
+      "english": "Happy and welcome to you in a new episode of the program, Back to the Namliyeh. Today, the southern destination is on a border area between Lebanon and occupied Palestine, and what could be sweeter than the south and the view of the city of Bint Jbeil? Today, the southern touches and the Bint Jbeili style will create for us more than one thing, such as African tomato sauce and others that we will learn today from this beautiful region and the wonderful destination of wonderful Lebanon. Stay tuned for a mind-blowing episode during our journey to the town of Bint Jbeil or the city of Bint Jbeil, which is very familiar to us. There is a slight inclination we would like to discuss regarding the size of the small operating room that produces the Saj. We had previously discussed the Saj, but it is always important for me in every village and every area we visit, and in every city we explore, to observe their method of making Saj, which is extremely healthy bread that should replace white bread due to the harm caused by white bread. We don't intend to say anything negative about white bread, but Saj remains the best alternative for our tables and meals in Lebanon.",
+      "corrections": [
+        {
+          "from": "العودة الى النملية",
+          "to": "العودة إلى النملية",
+          "confidence": "high"
+        },
+        {
+          "from": "اليوم الوجهة الجنوبية علي",
+          "to": "اليوم الوجهة جنوبية على",
+          "confidence": "high"
+        },
+        {
+          "from": "وشو في احلي من الجنوب",
+          "to": "وما أحلى من الجنوب",
+          "confidence": "high"
+        },
+        {
+          "from": "البنت جبيلية راح تصنعنا",
+          "to": "والبنت جبيلية ستصنع لنا",
+          "confidence": "high"
+        },
+        {
+          "from": "بينات كمنت البنددوروره",
+          "to": "مثل بندورة الفراكة الأفريقية",
+          "confidence": "high"
+        },
+        {
+          "from": "خليكم معنا حلقةتاخد العقل",
+          "to": "ابقوا معنا لحلقة تأخذ العقل",
+          "confidence": "high"
+        },
+        {
+          "from": "على بلدة بنت جبيل او على مدينة بنت جبيل",
+          "to": "إلى بلدة بنت جبيل أو مدينة بنت جبيل",
+          "confidence": "high"
+        },
+        {
+          "from": "المعروفة جدا عنا ميول صغيرة",
+          "to": "المعروفة جدًا لدينا ميل صغير",
+          "confidence": "high"
+        },
+        {
+          "from": "حجم دللان غرفة العمليات الصغيرة",
+          "to": "حول حجم غرفة العمليات الصغيرة",
+          "confidence": "high"
+        },
+        {
+          "from": "اللي بتنتج الصاج يعني نحن كذا حلقة قبل حكينا عن الصاج",
+          "to": "التي تنتج الصاج، أي أننا تحدثنا في الحلقة السابقة عن الصاج",
+          "confidence": "high"
+        },
+        {
+          "from": "دائما ولكن دائما يهمني بكل ضيعة وبكل منطقة نكون فيها",
+          "to": "دائمًا يهمني في كل ضيعة وكل منطقة نكون فيها",
+          "confidence": "high"
+        },
+        {
+          "from": "عم نكون فيها نشوف كيف طريقته لصناعة الصاج الخبز الصحي جدا",
+          "to": "نكون فيها، أن نرى كيفية صنعهم للصاج، وهو خبز صحي جدًا",
+          "confidence": "high"
+        },
+        {
+          "from": "نذكر ضروريستعمله ويكون بديل عن الخبز الأبيض ل حجم الأضرار بيسببها الخبز الأبيض",
+          "to": "يجب استخدامه كبديل عن الخبز الأبيض بسبب الضرر الذي يسببه الخبز الأبيض",
+          "confidence": "high"
+        },
+        {
+          "from": "ما بدنا نعمل اي سيء للخبز الأبيض",
+          "to": "لا نريد أن نقول شيئًا سلبيًا عن الخبز الأبيض",
+          "confidence": "high"
+        },
+        {
+          "from": "الصاج دايما هو البديل الافضل لمائدتنا ووطعامنا بلبنان",
+          "to": "السج دائمًا هو البديل الأفضل لطاولتنا ولطعامنا في لبنان",
+          "confidence": "high"
+        }
+      ],
+      "places": [
+        "لبنان",
+        "فلسطين المحتلة",
+        "بنت جبيل"
+      ],
+      "people": [],
+      "themes": [
+        "العودة إلى النملية",
+        "الصحة الغذائية",
+        "الثقافة المحلية"
+      ],
+      "keywords_ar": [
+        "برنامج العودة إلى النملية",
+        "جنوب لبنان",
+        "مدينة بنت جبيل",
+        "خبز الصاج",
+        "البديل الصحي للخبز الأبيض"
+      ],
+      "keywords_en": [
+        "Back to the Namliyeh program",
+        "South Lebanon",
+        "Bint Jbeil city",
+        "Saj bread",
+        "healthy alternative to white bread"
+      ]
+    },
+    {
+      "start": 116.98,
+      "end": 187.15,
+      "arabic": "بدي أرحب بالحاجة ماريانا، هلا الحاجة إنّها أهلًا وسهلًا فيكي، شرفتِنا ونورتينا ببرنامج العودة، برنامج عودي إلى النملية خمس سنوات عايشة، أخذت القرار إنك تعملي خبز تحطي بالبيت، حسيتي إن الناس بتعرف المعيشة، المعيشة كيف؟ عشان هيك قررت، الناس برافو صار عندك زبونات بعلبات، يعني بالبيت بيجوا لعندك ياخذوها، يلفونها، يبوسولها، ياخذوها عال يعني بدنا قد عشر حبات، عشرين حبة آخر العجين تبع شو المزيج تستعمليه؟ هو تستعمل الطحين الأسمر قليلاً كثير الأبيض، بحط أربع أسامير، بحط واحد صغير أبيض ريفي، ملح وملح عظيم مرتين، من قبل جربت إني أروح وما كانت عم تنجح معي.",
+      "arabic_raw": "بدي أرحب بالحجم مالانان هلا حجم ان اهلا وسهلا فيك شرفتيننا نورتين ببرنامج العود برنامج عودي إلى النمل خمس سنين معيش اخذت قرار انك تعمل نخبز نحط بالبيت صرتحس أن الناس بتحبتعرف المعيش المعيشه كيف عشان هيك قررت الناس برافو صار عندك زبونات بعلبات يعني بالبيت بيجوا لعندك بياخذوهاليفون بيبوسوصلون بياخدون عال يعني بدناقد عشر حبات عشرين حب اخره العجة تبع شو المزيجي تستعمل هو تستعمللطحين أسمار قليل كتير أبيض بحط اربع ات أسار بحط واحد صغير أبيض ريف ملح وملح عظيم مرتين من قبل جربت اني جون وما كانت عم تبط معي",
+      "english": "I would like to welcome Hajjeh Mariana. Now, Hajjeh, you are most welcome, you have graced us and illuminated our Namliyeh program which has been running for five years. You made the decision to start baking bread at home because you felt that people wanted to learn about life, about how to live? That’s why you decided, bravo! People started coming to your house to buy your bread, wrapping it up, kissing it, taking it away – we need around ten loaves, maybe even twenty. What kind of dough do you usually make? It seems like you mix brown flour with some white flour, adding four cloves, then a smaller amount of rural white flour, along with salt and large amounts of salt. Twice before, I attempted this but didn’t succeed.",
+      "corrections": [
+        {
+          "from": "الحجم",
+          "to": "الحاجة",
+          "confidence": "high"
+        },
+        {
+          "from": "+Anan",
+          "to": "ماريانا",
+          "confidence": "high"
+        },
+        {
+          "from": "شرفتيننا",
+          "to": "شرفتِنا",
+          "confidence": "high"
+        },
+        {
+          "from": "نورتين",
+          "to": "نورتينا",
+          "confidence": "high"
+        },
+        {
+          "from": "معيش",
+          "to": "المعيشة",
+          "confidence": "high"
+        },
+        {
+          "from": "بعلبات",
+          "to": "بعلبات",
+          "confidence": "high"
+        },
+        {
+          "from": "ليفون",
+          "to": "يلفون",
+          "confidence": "high"
+        },
+        {
+          "from": "بيبوسوصلون",
+          "to": "يبوسولها",
+          "confidence": "high"
+        },
+        {
+          "from": "جون",
+          "to": "أروح",
+          "confidence": "high"
+        },
+        {
+          "from": "+dealing with me",
+          "to": "تنجح معي",
+          "confidence": "high"
+        }
+      ],
+      "places": [
+        "النملية",
+        "البيت"
+      ],
+      "people": [
+        "الحاجة ماريانا"
+      ],
+      "themes": [
+        "خبز",
+        "معيشة",
+        "تجارة منزلية"
+      ],
+      "keywords_ar": [
+        "خبز",
+        "معيشة",
+        "زبائن",
+        "عجين",
+        "دقيق",
+        "ملح"
+      ],
+      "keywords_en": [
+        "bread",
+        "livelihood",
+        "customers",
+        "dough",
+        "flour",
+        "salt"
+      ]
+    }
+  ]
+}

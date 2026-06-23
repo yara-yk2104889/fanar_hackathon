@@ -1,0 +1,105 @@
+{
+  "contributor": null,
+  "claimed_village": null,
+  "claimed_year": null,
+  "contributor_caption": null,
+  "inferred_locality": "null",
+  "inferred_region": "Mount Lebanon",
+  "era_estimate": "unknown",
+  "location_confidence": "medium",
+  "location_clues": [
+    "The architectural style of the buildings suggests a traditional stone construction typical of the region.",
+    "The presence of trees like cedars is indicative of the Mount Lebanon region.",
+    "The vegetation includes cedars, which are native to the area."
+  ],
+  "era_clues": [],
+  "year_source": "ai_inferred",
+  "village_source": "ai_inferred",
+  "image_path": "pictures_test\\WhatsApp Image 2026-06-20 at 12.44.52 PM.jpeg",
+  "description": "The image shows an outdoor scene with a mix of natural and man-made elements. The foreground features stone steps leading up to a metal railing with intricate designs. Below the railing, there are white umbrellas set up for seating, suggesting an outdoor dining area. In the mid-ground, there is a stone wall that appears to be part of a historical structure, possibly a fortification given its robust construction and arched openings. Behind the wall, there are trees and some modern buildings with red-tiled roofs, indicating a blend of old and new architecture. A person can be seen walking on the steps, adding a sense of scale to the scene. The background consists of a hill covered with greenery, including both deciduous and evergreen trees. The sky above is clear and blue, suggesting a sunny day. The overall setting appears to be a village or small town, as indicated by the combination of traditional stone structures and more modern buildings. There is no visible Arabic text or signage in the image. The architectural style suggests a Mediterranean influence, which could point towards a location in the Middle East or North Africa. The presence of the stone walls and the design of the buildings might indicate a historical period ranging from medieval to early modern times. Culturally, the scene reflects a place where history and contemporary life coexist, possibly in a region known for its rich cultural heritage.",
+  "inspector": {
+    "scene_type": "landscape",
+    "setting": "a scenic view with stone walls, trees, and a clear blue sky",
+    "features": [
+      "stone staircase with wrought iron railing",
+      "white umbrellas on tables below",
+      "trees and greenery surrounding the area",
+      "buildings with red-tiled roofs in the background",
+      "ancient-looking stone wall structure"
+    ],
+    "people_present": "yes-identifiable",
+    "architecture": "stone buildings with arched windows and doorways, some with red-tiled roofs; ancient-looking stone wall structure",
+    "arabic_text_seen": [],
+    "vegetation_landscape": "abundant greenery including trees and shrubs",
+    "estimated_era": "unknown",
+    "cultural_markers": [
+      "stone architecture suggesting historical significance",
+      "red-tiled roofs commonly found in Mediterranean regions",
+      "wrought iron railings indicating a blend of traditional and modern design"
+    ],
+    "notes": "The scene appears to be a tourist spot given the presence of people and outdoor seating."
+  },
+  "verification": {
+    "decision": "flag",
+    "confidence": "medium",
+    "reasons": [],
+    "moderation_passed": true,
+    "visual_verdict": "clean",
+    "consistency_verdict": "minor_issues"
+  },
+  "tags_en": [
+    "outdoor scene",
+    "stone stairs",
+    "metal railing",
+    "umbrellas",
+    "dining area",
+    "historical wall",
+    "fortification",
+    "modern buildings",
+    "red tiles",
+    "village",
+    "Mediterranean",
+    "Middle Eastern",
+    "North African",
+    "medieval",
+    "early modern",
+    "cultural heritage"
+  ],
+  "tags_ar": [
+    "مشهد خارجي",
+    "درج حجري",
+    "سور معدني",
+    "مظلات بيضاء",
+    "منطقة طعام خارجية",
+    "حائط تاريخي",
+    "تحصين",
+    "أبنية حديثة",
+    "بلاط أحمر",
+    "قرية",
+    "البحر الأبيض المتوسط",
+    "شرق أوسطي",
+    "شمال أفريقيا",
+    "عصور وسطى",
+    "حديث مبكر",
+    "تراث ثقافي"
+  ],
+  "routing": {
+    "status": "no_match",
+    "extracted_places": [
+      "null"
+    ],
+    "place_validation": {
+      "candidates": [
+        {
+          "name": "null",
+          "type": "other",
+          "is_place": false
+        }
+      ],
+      "lebanese_localities": [],
+      "primary_anchor": null,
+      "reason": "No specific Lebanese localities were mentioned in the provided context."
+    }
+  },
+  "status": "needs_review"
+}
