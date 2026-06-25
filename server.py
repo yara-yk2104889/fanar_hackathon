@@ -279,11 +279,14 @@ def get_place(cadaster_id: str):
 
     interviews, photos = [], []
 
+    data_abs = DATA_DIR.resolve()
+
     for path in entry.get("interviews", []):
         try:
             with open(path, encoding="utf-8") as f:
                 rec = json.load(f)
             if rec.get("status") == "published":
+                rec["_file_path"] = Path(path).resolve().relative_to(data_abs).as_posix()
                 interviews.append(rec)
         except Exception:
             pass
@@ -293,6 +296,7 @@ def get_place(cadaster_id: str):
             with open(path, encoding="utf-8") as f:
                 rec = json.load(f)
             if rec.get("status") in ("published", "accept"):
+                rec["_file_path"] = Path(path).resolve().relative_to(data_abs).as_posix()
                 photos.append(rec)
         except Exception:
             pass
@@ -317,6 +321,46 @@ def get_places():
                 "photo_count":     n_p,
             })
     return {"places": places}
+
+
+# ── DELETE /api/memory ────────────────────────────────────────────────────────
+
+@app.delete("/api/memory")
+def delete_memory(body: dict):
+    """Delete an interview or photo record by its relative path."""
+    rel_path = (body.get("path") or "").strip()
+    if not rel_path or ".." in rel_path:
+        raise HTTPException(400, "Invalid path")
+
+    target   = (DATA_DIR / rel_path).resolve()
+    data_abs = DATA_DIR.resolve()
+    try:
+        target.relative_to(data_abs)    # raises ValueError if outside DATA_DIR
+    except ValueError:
+        raise HTTPException(403, "Path outside data directory")
+
+    if not target.exists():
+        raise HTTPException(404, "Memory not found")
+
+    target.unlink()
+
+    # Remove from index (stored paths may be relative or absolute, compare resolved)
+    index = _load_index()
+    changed = False
+    for entry in index.values():
+        for kind in ("interviews", "photos"):
+            before = entry.get(kind, [])
+            after  = [p for p in before if Path(p).resolve() != target]
+            if len(after) != len(before):
+                entry[kind] = after
+                changed = True
+    if changed:
+        _save_index(index)
+
+    if _SEARCH_AVAILABLE:
+        search_engine._INDEX_BUILT = False
+
+    return {"deleted": rel_path}
 
 
 # ── POST /api/search ──────────────────────────────────────────────────────────

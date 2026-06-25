@@ -20,26 +20,25 @@ const PHOTO_STEPS = [
   'Locating & verifying…',
   'Tagging & routing…',
 ]
-// Approximate ms each step takes before auto-advancing (purely cosmetic)
 const STEP_DELAYS = [2000, 45000, 35000, 8000]
 
 export default function ContributeModal({ open, onClose }: Props) {
-  const [utype, setUtype] = useState<'video' | 'photo'>('video')
-  const [stage, setStage] = useState<Stage>('idle')
-  const [stepIndex, setStepIndex] = useState(0)
-  const [errorMsg, setErrorMsg] = useState('')
+  const [utype, setUtype]           = useState<'video' | 'photo'>('video')
+  const [stage, setStage]           = useState<Stage>('idle')
+  const [stepIndex, setStepIndex]   = useState(0)
+  const [errorMsg, setErrorMsg]     = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   const fileRef        = useRef<HTMLInputElement>(null)
   const contributorRef = useRef<HTMLInputElement>(null)
   const villageRef     = useRef<HTMLInputElement>(null)
   const yearRef        = useRef<HTMLInputElement>(null)
   const captionRef     = useRef<HTMLTextAreaElement>(null)
-
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const stopTimer = () => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = null
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
   }
 
   const startProgressTimer = (steps: string[]) => {
@@ -58,35 +57,46 @@ export default function ContributeModal({ open, onClose }: Props) {
     setStage('idle')
     setStepIndex(0)
     setErrorMsg('')
+    setSelectedFile(null)
     stopTimer()
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && stage !== 'working') {
-      resetForm()
-      onClose()
-    }
+  const handleFileSelect = (file: File) => setSelectedFile(file)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (f) handleFileSelect(f)
   }
 
-  const handleClose = () => {
-    if (stage === 'working') return
-    resetForm()
-    onClose()
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const f = e.dataTransfer.files?.[0]
+    if (f) handleFileSelect(f)
   }
 
   const switchType = (t: 'video' | 'photo') => {
     if (stage !== 'idle') return
     setUtype(t)
+    setSelectedFile(null)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && stage !== 'working') { resetForm(); onClose() }
+  }
+
+  const handleClose = () => {
+    if (stage === 'working') return
+    resetForm(); onClose()
   }
 
   const handleSubmit = async () => {
     if (stage === 'working') return
-
-    const file = fileRef.current?.files?.[0]
-    if (!file) {
+    if (!selectedFile) {
       setStage('error')
-      setErrorMsg('Please select a file before submitting.')
+      setErrorMsg('Please select a file first.')
       return
     }
 
@@ -97,16 +107,16 @@ export default function ContributeModal({ open, onClose }: Props) {
 
     const body = new FormData()
     if (utype === 'photo') {
-      body.append('image', file)
-      body.append('contributor', contributorRef.current?.value || 'Anonymous')
-      body.append('claimed_village', villageRef.current?.value || '')
-      body.append('caption', captionRef.current?.value || '')
-      body.append('year', yearRef.current?.value || '')
+      body.append('image', selectedFile)
+      body.append('contributor', contributorRef.current?.value.trim() || 'Anonymous')
+      body.append('claimed_village', villageRef.current?.value.trim() || '')
+      body.append('caption', captionRef.current?.value.trim() || '')
+      body.append('year', yearRef.current?.value.trim() || '')
     } else {
-      body.append('file', file)
-      body.append('contributor', contributorRef.current?.value || 'Anonymous')
-      body.append('claimed_village', villageRef.current?.value || '')
-      body.append('claimed_year', yearRef.current?.value || '')
+      body.append('file', selectedFile)
+      body.append('contributor', contributorRef.current?.value.trim() || 'Anonymous')
+      body.append('claimed_village', villageRef.current?.value.trim() || '')
+      body.append('claimed_year', yearRef.current?.value.trim() || '')
     }
 
     setStage('working')
@@ -123,6 +133,7 @@ export default function ContributeModal({ open, onClose }: Props) {
       }
       setStage('success')
     } catch (err: unknown) {
+      stopTimer()
       setStage('error')
       setErrorMsg(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
     }
@@ -130,6 +141,10 @@ export default function ContributeModal({ open, onClose }: Props) {
 
   const steps = utype === 'photo' ? PHOTO_STEPS : VIDEO_STEPS
   const currentLabel = steps[stepIndex] ?? steps[0]
+
+  const accept = utype === 'photo'
+    ? 'image/jpeg,image/png,image/heic,image/heif,image/webp'
+    : 'video/mp4,video/quicktime,audio/mpeg,audio/mp4,audio/x-m4a'
 
   return (
     <div className={`modal-backdrop${open ? ' open' : ''}`} onClick={handleBackdrop}>
@@ -144,34 +159,26 @@ export default function ContributeModal({ open, onClose }: Props) {
           )}
         </div>
 
-        {/* ── Success state ─────────────────────────────── */}
+        {/* ── Success ──────────────────────────────────────── */}
         {stage === 'success' && (
           <div className="empty-state" style={{ padding: '2rem 0' }}>
-            <div className="icon">✓</div>
+            <div className="icon" style={{ fontSize: '2.5rem' }}>✓</div>
             <h3>Memory received!</h3>
-            <p>
-              Your contribution has been processed and will appear on the map once
-              it passes our review.
-            </p>
-            <button
-              className="form-submit"
-              style={{ marginTop: '1.2rem' }}
-              onClick={() => { resetForm(); onClose() }}
-            >
+            <p>Your contribution has been processed and will appear on the map once it passes our review.</p>
+            <button className="form-submit" style={{ marginTop: '1.2rem' }}
+              onClick={() => { resetForm(); onClose() }}>
               Close
             </button>
           </div>
         )}
 
-        {/* ── Working state ─────────────────────────────── */}
+        {/* ── Working ──────────────────────────────────────── */}
         {stage === 'working' && (
           <div className="empty-state" style={{ padding: '2rem 0' }}>
-            <div className="loading-spinner" style={{
+            <div style={{
               width: 36, height: 36,
-              border: '3px solid var(--sage)',
-              borderTopColor: 'transparent',
-              borderRadius: '50%',
-              animation: 'spin 0.9s linear infinite',
+              border: '3px solid var(--sage)', borderTopColor: 'transparent',
+              borderRadius: '50%', animation: 'spin 0.9s linear infinite',
               margin: '0 auto 1rem',
             }} />
             <p style={{ color: 'var(--sage)', fontWeight: 500 }}>{currentLabel}</p>
@@ -181,49 +188,65 @@ export default function ContributeModal({ open, onClose }: Props) {
           </div>
         )}
 
-        {/* ── Idle / error form ─────────────────────────── */}
+        {/* ── Form (idle / error) ───────────────────────────── */}
         {(stage === 'idle' || stage === 'error') && (
           <>
             <p className="modal-sub">
-              Your contribution will be transcribed, translated, and geolocated by our AI
-              pipeline, then placed on the living map.
-              <span className="ar" dir="rtl">
-                مساهمتك ستُضاف إلى الخريطة بعد المعالجة الآلية.
-              </span>
+              Your contribution will be transcribed, translated, and geolocated by our AI pipeline, then placed on the living map.
+              <span className="ar" dir="rtl"> مساهمتك ستُضاف إلى الخريطة بعد المعالجة الآلية.</span>
             </p>
 
             <div className="upload-tabs">
-              <button
-                className={`upload-tab${utype === 'video' ? ' active' : ''}`}
-                onClick={() => switchType('video')}
-              >
+              <button className={`upload-tab${utype === 'video' ? ' active' : ''}`} onClick={() => switchType('video')}>
                 🎙 Interview / Video
               </button>
-              <button
-                className={`upload-tab${utype === 'photo' ? ' active' : ''}`}
-                onClick={() => switchType('photo')}
-              >
+              <button className={`upload-tab${utype === 'photo' ? ' active' : ''}`} onClick={() => switchType('photo')}>
                 📷 Photo
               </button>
             </div>
 
-            <label className="upload-area" style={{ cursor: 'pointer' }}>
-              <input
-                ref={fileRef}
-                type="file"
-                style={{ display: 'none' }}
-                accept={utype === 'photo'
-                  ? 'image/jpeg,image/png,image/heic,image/webp'
-                  : 'video/mp4,video/quicktime,audio/mpeg,audio/mp4,audio/x-m4a'}
-              />
-              <div className="icon">{utype === 'photo' ? '📷' : '🎙'}</div>
-              <div className="text">Click to upload or drag &amp; drop</div>
-              <div className="types">
-                {utype === 'photo'
-                  ? 'JPG, PNG, HEIC — max 50 MB'
-                  : 'MP4, MOV, MP3, M4A — max 200 MB'}
-              </div>
-            </label>
+            {/* Hidden file input — triggered explicitly */}
+            <input
+              ref={fileRef}
+              type="file"
+              accept={accept}
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
+
+            {/* Click-to-upload area */}
+            <div
+              className="upload-area"
+              style={{
+                cursor: 'pointer',
+                borderColor: isDragOver ? 'var(--sage)' : undefined,
+                background: isDragOver ? 'rgba(123,164,140,0.08)' : undefined,
+              }}
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDrop}
+            >
+              {selectedFile ? (
+                <>
+                  <div className="icon" style={{ fontSize: '1.4rem' }}>✓</div>
+                  <div className="text" style={{ color: 'var(--sage)', fontWeight: 600 }}>
+                    {selectedFile.name}
+                  </div>
+                  <div className="types">
+                    {(selectedFile.size / 1024 / 1024).toFixed(1)} MB · Click to change file
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="icon">{utype === 'photo' ? '📷' : '🎙'}</div>
+                  <div className="text">Click to upload or drag &amp; drop</div>
+                  <div className="types">
+                    {utype === 'photo' ? 'JPG, PNG, HEIC — max 50 MB' : 'MP4, MOV, MP3, M4A — max 200 MB'}
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="form-field">
               <label className="form-label">
@@ -237,12 +260,7 @@ export default function ContributeModal({ open, onClose }: Props) {
               <label className="form-label">
                 <span className="ar">القرية</span> Village / Town
               </label>
-              <input
-                ref={villageRef}
-                className="form-input"
-                type="text"
-                placeholder="e.g. Bint Jbeil, Tyre, Nabatieh…"
-              />
+              <input ref={villageRef} className="form-input" type="text" placeholder="e.g. Bint Jbeil, Tyre, Nabatieh…" />
             </div>
 
             <div className="form-field">
@@ -250,14 +268,7 @@ export default function ContributeModal({ open, onClose }: Props) {
                 <span className="ar">السنة</span> Approximate year{' '}
                 <small style={{ color: 'var(--muted)' }}>(optional)</small>
               </label>
-              <input
-                ref={yearRef}
-                className="form-input"
-                type="number"
-                placeholder="e.g. 1975"
-                min={1900}
-                max={2030}
-              />
+              <input ref={yearRef} className="form-input" type="number" placeholder="e.g. 1975" min={1900} max={2030} />
             </div>
 
             {utype === 'photo' && (
@@ -266,11 +277,8 @@ export default function ContributeModal({ open, onClose }: Props) {
                   <span className="ar">وصف</span> Caption{' '}
                   <small style={{ color: 'var(--muted)' }}>(optional)</small>
                 </label>
-                <textarea
-                  ref={captionRef}
-                  className="form-textarea"
-                  placeholder="Describe what's shown, when and where it was taken…"
-                />
+                <textarea ref={captionRef} className="form-textarea"
+                  placeholder="Describe what's shown, when and where it was taken…" />
               </div>
             )}
 
@@ -284,8 +292,7 @@ export default function ContributeModal({ open, onClose }: Props) {
               Submit Memory
             </button>
             <p className="form-note">
-              All uploads are reviewed before publication.
-              <br />
+              All uploads are reviewed before publication.<br />
               Your metadata is kept exactly as entered — AI never alters contributor data.
             </p>
           </>

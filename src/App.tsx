@@ -40,6 +40,7 @@ function convertInterviews(recs: ApiInterview[], info: PlaceClickInfo): Intervie
       summaryEn: rec.summary?.summary_en ?? '',
       summaryAr: rec.summary?.summary_ar ?? '',
       segments,
+      filePath: rec._file_path,
     }
   })
 }
@@ -53,6 +54,7 @@ function convertPhotos(recs: ApiPhoto[], info: PlaceClickInfo): Photo[] {
     contributor: rec.contributor ?? 'Anonymous',
     tagsEn: rec.tags_en ?? [],
     tagsAr: rec.tags_ar ?? [],
+    filePath: rec._file_path,
   }))
 }
 
@@ -103,6 +105,32 @@ export default function App() {
       // District-level click or no cadasterId — fall back to sample data
       setPanelPlace(findPlaceByName(info.nameEn))
       setPlaceLoading(false)
+    }
+  }, [])
+
+  const handleDeleteMemory = useCallback(async (filePath: string, type: 'interview' | 'photo') => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/memory`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: filePath }),
+      })
+      if (!resp.ok) throw new Error(`Server error ${resp.status}`)
+      // Remove from local state immediately
+      setPanelPlace(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          interviews: type === 'interview'
+            ? prev.interviews.filter(iv => iv.filePath !== filePath)
+            : prev.interviews,
+          photos: type === 'photo'
+            ? prev.photos.filter(ph => ph.filePath !== filePath)
+            : prev.photos,
+        }
+      })
+    } catch (err) {
+      console.error('[app] delete failed', err)
     }
   }, [])
 
@@ -167,6 +195,7 @@ export default function App() {
               place={panelPlace}
               loading={placeLoading}
               onClose={handleClosePanel}
+              onDelete={handleDeleteMemory}
             />
 
             <SearchOverlay

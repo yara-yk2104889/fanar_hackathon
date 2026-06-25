@@ -16,6 +16,7 @@ export interface Interview {
   summaryEn: string
   summaryAr: string
   segments: Segment[]
+  filePath?: string
 }
 
 export interface Photo {
@@ -26,6 +27,7 @@ export interface Photo {
   contributor: string
   tagsEn: string[]
   tagsAr: string[]
+  filePath?: string
 }
 
 export interface PlaceData {
@@ -64,6 +66,7 @@ export interface ApiInterview {
   claimed_village?: string
   summary?: { summary_en?: string; summary_ar?: string }
   segments?: ApiSegment[]
+  _file_path?: string
 }
 
 export interface ApiPhoto {
@@ -74,6 +77,7 @@ export interface ApiPhoto {
   era_estimate?: string
   tags_en?: string[]
   tags_ar?: string[]
+  _file_path?: string
 }
 
 export interface ApiPlaceResponse {

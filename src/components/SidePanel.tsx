@@ -6,9 +6,10 @@ interface Props {
   place: PlaceData | null
   loading?: boolean
   onClose: () => void
+  onDelete?: (filePath: string, type: 'interview' | 'photo') => void
 }
 
-export default function SidePanel({ info, place, loading, onClose }: Props) {
+export default function SidePanel({ info, place, loading, onClose, onDelete }: Props) {
   const [tab, setTab] = useState<'testimonies' | 'photos'>('testimonies')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -83,6 +84,9 @@ export default function SidePanel({ info, place, loading, onClose }: Props) {
                       onToggle={() =>
                         setExpandedId(expandedId === iv.id ? null : iv.id)
                       }
+                      onDelete={iv.filePath && onDelete
+                        ? () => onDelete(iv.filePath!, 'interview')
+                        : undefined}
                     />
                   ))
                 )}
@@ -97,7 +101,15 @@ export default function SidePanel({ info, place, loading, onClose }: Props) {
                     <h3>No photos yet</h3>
                   </div>
                 ) : (
-                  place.photos.map((ph) => <PhotoCard key={ph.id} ph={ph} />)
+                  place.photos.map((ph) => (
+                    <PhotoCard
+                      key={ph.id}
+                      ph={ph}
+                      onDelete={ph.filePath && onDelete
+                        ? () => onDelete(ph.filePath!, 'photo')
+                        : undefined}
+                    />
+                  ))
                 )}
               </div>
             )}
@@ -108,14 +120,41 @@ export default function SidePanel({ info, place, loading, onClose }: Props) {
   )
 }
 
+function DeleteBtn({ onDelete }: { onDelete: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  if (confirming) {
+    return (
+      <span style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          style={{ background: '#c0392b', color: '#fff', border: 'none', borderRadius: 4, padding: '1px 7px', fontSize: '0.72rem', cursor: 'pointer' }}
+        >Delete</button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setConfirming(false) }}
+          style={{ background: 'none', border: '1px solid var(--muted)', borderRadius: 4, padding: '1px 7px', fontSize: '0.72rem', cursor: 'pointer', color: 'var(--muted)' }}
+        >Cancel</button>
+      </span>
+    )
+  }
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); setConfirming(true) }}
+      title="Delete this memory"
+      style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.9rem', padding: '0 2px', lineHeight: 1 }}
+    >🗑</button>
+  )
+}
+
 function InterviewCard({
   iv,
   expanded,
   onToggle,
+  onDelete,
 }: {
   iv: Interview
   expanded: boolean
   onToggle: () => void
+  onDelete?: () => void
 }) {
   return (
     <div className={`interview-card${expanded ? ' expanded' : ''}`}>
@@ -124,7 +163,10 @@ function InterviewCard({
           <div className="en">{iv.titleEn}</div>
           <div className="ar" dir="rtl">{iv.titleAr}</div>
         </div>
-        <div className="year">{iv.year}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div className="year">{iv.year}</div>
+          {onDelete && <DeleteBtn onDelete={onDelete} />}
+        </div>
       </div>
 
       {!expanded && (
@@ -196,13 +238,16 @@ function SegmentRow({ seg }: { seg: Segment }) {
   )
 }
 
-function PhotoCard({ ph }: { ph: Photo }) {
+function PhotoCard({ ph, onDelete }: { ph: Photo; onDelete?: () => void }) {
   return (
     <div className="photo-card">
       <div className="photo-thumb">{ph.icon}</div>
       <div className="photo-info">
         <div className="photo-caption">{ph.description}</div>
-        <div className="photo-year">{ph.year}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="photo-year">{ph.year}</div>
+          {onDelete && <DeleteBtn onDelete={onDelete} />}
+        </div>
         <div className="photo-tags">
           {ph.tagsEn.slice(0, 3).map((t) => (
             <span key={t} className="chip">{t}</span>
