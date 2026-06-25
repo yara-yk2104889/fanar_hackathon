@@ -243,54 +243,116 @@ function SegmentRow({ seg }: { seg: Segment }) {
 }
 
 function PhotoCard({ ph, onDelete, onZoom }: { ph: Photo; onDelete?: () => void; onZoom?: () => void }) {
+  const [open, setOpen] = useState(false)
+
   return (
-    <div className="photo-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-      {/* Image preview */}
+    <>
+      {/* ── Card ──────────────────────────────────── */}
       <div
-        style={{
+        className="photo-card"
+        style={{ flexDirection: 'column', alignItems: 'stretch', cursor: 'pointer' }}
+        onClick={() => setOpen(true)}
+      >
+        <div style={{
           width: '100%', aspectRatio: '16/9', overflow: 'hidden',
           borderRadius: '6px 6px 0 0', background: '#e8ede9',
-          cursor: onZoom ? 'pointer' : 'default', position: 'relative',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}
-        onClick={onZoom}
-        title={onZoom ? 'Click to zoom to location on map' : undefined}
-      >
-        {ph.imageUrl ? (
-          <>
-            <img
-              src={ph.imageUrl}
-              alt={ph.description}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-            {onZoom && (
-              <div style={{
-                position: 'absolute', bottom: 6, right: 6,
-                background: 'rgba(0,0,0,0.45)', color: '#fff',
-                fontSize: '0.68rem', borderRadius: 4, padding: '2px 6px',
-              }}>
-                📍 zoom to location
-              </div>
-            )}
-          </>
-        ) : (
-          <span style={{ fontSize: '2rem', opacity: 0.4 }}>{ph.icon}</span>
-        )}
+        }}>
+          {ph.imageUrl
+            ? <img src={ph.imageUrl} alt={ph.description} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : <span style={{ fontSize: '2rem', opacity: 0.4 }}>{ph.icon}</span>
+          }
+        </div>
+        <div className="photo-info">
+          <div className="photo-caption" style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {ph.description}
+          </div>
+          <div className="photo-year">{ph.year}</div>
+          <div className="photo-tags">
+            {ph.tagsEn.slice(0, 3).map(t => <span key={t} className="chip">{t}</span>)}
+          </div>
+        </div>
       </div>
 
-      {/* Info */}
-      <div className="photo-info">
-        <div className="photo-caption">{ph.description}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="photo-year">{ph.year}</div>
-          {onDelete && <DeleteBtn onDelete={onDelete} />}
+      {/* ── Lightbox ──────────────────────────────── */}
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 2000,
+            background: 'rgba(0,0,0,0.82)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 12, overflow: 'hidden',
+              maxWidth: 560, width: '100%', maxHeight: '90vh',
+              display: 'flex', flexDirection: 'column',
+            }}
+          >
+            {/* Image */}
+            <div style={{ position: 'relative', background: '#111' }}>
+              {ph.imageUrl
+                ? <img src={ph.imageUrl} alt={ph.description} style={{ width: '100%', maxHeight: 340, objectFit: 'contain', display: 'block' }} />
+                : <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem', opacity: 0.3 }}>{ph.icon}</div>
+              }
+              <button
+                onClick={() => setOpen(false)}
+                style={{ position: 'absolute', top: 10, right: 12, background: 'rgba(0,0,0,0.5)', border: 'none', color: '#fff', fontSize: '1.2rem', borderRadius: '50%', width: 30, height: 30, cursor: 'pointer', lineHeight: 1 }}
+              >×</button>
+            </div>
+
+            {/* Details */}
+            <div style={{ padding: '1.1rem 1.3rem', overflowY: 'auto' }}>
+              <p style={{ margin: '0 0 0.7rem', fontSize: '0.9rem', lineHeight: 1.55, color: '#2a2a2a' }}>
+                {ph.description}
+              </p>
+
+              {ph.contributor && (
+                <p style={{ margin: '0 0 0.3rem', fontSize: '0.78rem', color: '#666' }}>
+                  Contributed by <strong>{ph.contributor}</strong>{ph.year ? ` · ${ph.year}` : ''}
+                </p>
+              )}
+
+              {ph.tagsEn.length > 0 && (
+                <div style={{ marginTop: '0.7rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#999', marginBottom: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tags</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                    {ph.tagsEn.map(t => <span key={t} className="chip">{t}</span>)}
+                  </div>
+                </div>
+              )}
+
+              {ph.tagsAr.length > 0 && (
+                <div style={{ marginTop: '0.5rem', direction: 'rtl' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                    {ph.tagsAr.map(t => <span key={t} className="chip">{t}</span>)}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                {onZoom && (
+                  <button
+                    onClick={() => { setOpen(false); onZoom() }}
+                    style={{ background: 'var(--sage)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.45rem 0.9rem', fontSize: '0.8rem', cursor: 'pointer' }}
+                  >
+                    📍 Zoom to location
+                  </button>
+                )}
+                {onDelete && (
+                  <div onClick={e => e.stopPropagation()}>
+                    <DeleteBtn onDelete={() => { setOpen(false); onDelete() }} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="photo-tags">
-          {ph.tagsEn.slice(0, 3).map((t) => (
-            <span key={t} className="chip">{t}</span>
-          ))}
-        </div>
-      </div>
-    </div>
+      )}
+    </>
   )
 }
