@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { API_BASE } from '../config'
 
 interface Props {
@@ -28,7 +28,13 @@ export default function ContributeModal({ open, onClose }: Props) {
   const [stepIndex, setStepIndex]   = useState(0)
   const [errorMsg, setErrorMsg]     = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [isDragOver, setIsDragOver] = useState(false)
+  const [previewUrl, setPreviewUrl]   = useState<string | null>(null)
+  const [isDragOver, setIsDragOver]   = useState(false)
+
+  // Revoke the old object URL whenever it changes (avoid memory leak)
+  useEffect(() => {
+    return () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }
+  }, [previewUrl])
 
   const fileRef        = useRef<HTMLInputElement>(null)
   const contributorRef = useRef<HTMLInputElement>(null)
@@ -58,11 +64,16 @@ export default function ContributeModal({ open, onClose }: Props) {
     setStepIndex(0)
     setErrorMsg('')
     setSelectedFile(null)
+    setPreviewUrl(null)
     stopTimer()
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const handleFileSelect = (file: File) => setSelectedFile(file)
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file)
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(URL.createObjectURL(file))
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
@@ -80,6 +91,7 @@ export default function ContributeModal({ open, onClose }: Props) {
     if (stage !== 'idle') return
     setUtype(t)
     setSelectedFile(null)
+    setPreviewUrl(null)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -135,7 +147,12 @@ export default function ContributeModal({ open, onClose }: Props) {
     } catch (err: unknown) {
       stopTimer()
       setStage('error')
-      setErrorMsg(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      const msg = err instanceof Error ? err.message : 'Something went wrong.'
+      setErrorMsg(
+        msg === 'Failed to fetch'
+          ? 'Cannot reach the server. Run: uvicorn server:app --reload --port 8000'
+          : msg
+      )
     }
   }
 
@@ -227,10 +244,32 @@ export default function ContributeModal({ open, onClose }: Props) {
               onDragLeave={() => setIsDragOver(false)}
               onDrop={handleDrop}
             >
-              {selectedFile ? (
+              {selectedFile && previewUrl ? (
                 <>
-                  <div className="icon" style={{ fontSize: '1.4rem' }}>✓</div>
-                  <div className="text" style={{ color: 'var(--sage)', fontWeight: 600 }}>
+                  {selectedFile.type.startsWith('image/') && (
+                    <img
+                      src={previewUrl}
+                      alt="preview"
+                      style={{ maxHeight: 130, maxWidth: '100%', borderRadius: 8, objectFit: 'cover', marginBottom: '0.5rem' }}
+                    />
+                  )}
+                  {selectedFile.type.startsWith('video/') && (
+                    <video
+                      src={previewUrl}
+                      style={{ maxHeight: 130, maxWidth: '100%', borderRadius: 8, marginBottom: '0.5rem' }}
+                      controls
+                      preload="metadata"
+                    />
+                  )}
+                  {selectedFile.type.startsWith('audio/') && (
+                    <audio
+                      src={previewUrl}
+                      style={{ width: '100%', marginBottom: '0.5rem' }}
+                      controls
+                      preload="metadata"
+                    />
+                  )}
+                  <div style={{ fontSize: '0.78rem', color: 'var(--sage)', fontWeight: 600 }}>
                     {selectedFile.name}
                   </div>
                   <div className="types">

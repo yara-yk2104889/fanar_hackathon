@@ -132,7 +132,7 @@ def moderation_gate(text: str) -> dict:
 
 # ── Disk save helpers ─────────────────────────────────────────────────────────
 
-def _save_interview(record: dict, uid: str) -> tuple[str, str]:
+def _save_interview(record: dict, uid: str):
     cadaster_id = (record.get("routing") or {}).get("cadaster_id") or "unrouted"
     out_dir = INTERVIEWS_DIR / str(cadaster_id)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -142,7 +142,7 @@ def _save_interview(record: dict, uid: str) -> tuple[str, str]:
     return cadaster_id, path
 
 
-def _save_photo(record: dict, uid: str) -> tuple[str, str]:
+def _save_photo(record: dict, uid: str):
     cadaster_id = (record.get("routing") or {}).get("cadaster_id") or "unrouted"
     out_dir = PHOTOS_DIR / str(cadaster_id)
     out_dir.mkdir(parents=True, exist_ok=True)
