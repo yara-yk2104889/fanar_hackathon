@@ -8,6 +8,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { PlaceClickInfo } from '../types'
 import { PLACES } from '../sampleData'
+import { API_BASE } from '../config'
 
 export interface MapViewHandle {
   flyTo(lat: number, lng: number): void
@@ -63,6 +64,8 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
   const a3LoadingRef = useRef(false)
   const a3LoadedRef = useRef(false)
   const selectedLayerRef = useRef<L.Path | null>(null)
+  // cadaster IDs that have published content — populated from /api/places on map init
+  const contentCadastersRef = useRef<Set<string>>(new Set())
 
   useEffect(() => { onClickRef.current = onPlaceClick }, [onPlaceClick])
 
@@ -92,6 +95,15 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
 
     // Re-read container size after layout settles (fixes mobile half-map bug)
     setTimeout(() => map.invalidateSize(), 120)
+
+    // Fetch cadasters with archived content so we can add dots when admin3 loads
+    fetch(`${API_BASE}/api/places`)
+      .then(r => r.json() as Promise<{ places: { cadaster_id: string }[] }>)
+      .then(data => {
+        const ids = new Set((data.places ?? []).map(p => p.cadaster_id))
+        contentCadastersRef.current = ids
+      })
+      .catch(() => { /* server not running — silently skip dots */ })
 
     // Base tile: borders + geography, no labels (for surrounding countries)
     L.tileLayer(
@@ -273,20 +285,21 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
                 style: () => ({ ...A3_STYLE, pane: 'a3Pane' }),
                 onEachFeature(feature, flayer) {
                   const p = feature.properties as Record<string, string>
-                  const nameEn = p['adm3_name'] ?? ''
-                  const nameAr = p['adm3_name1'] ?? ''
-                  const gov = p['adm1_name'] ?? ''
+                  const nameEn    = p['adm3_name'] ?? ''
+                  const nameAr    = p['adm3_name1'] ?? ''
+                  const gov       = p['adm1_name'] ?? ''
+                  const cadasterId = p['adm3_pcode'] ?? p['adm3_name'] ?? ''
 
                   const path = flayer as L.Path
                   flayer.on('mouseover', () => path.setStyle(A3_HOVER))
                   flayer.on('mouseout', () => path.setStyle(A3_STYLE))
                   flayer.on('click', () => {
-                    onClickRef.current({ nameEn, nameAr, gov })
+                    onClickRef.current({ nameEn, nameAr, gov, cadasterId })
                   })
 
-                  // Permanent village name label at polygon center
                   const center = geomCenter(feature.geometry)
                   if (center) {
+                    // Permanent village name label at polygon center
                     L.marker(center, {
                       icon: L.divIcon({
                         className: 'village-label',
@@ -297,6 +310,19 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
                       interactive: false,
                       pane: 'a3Pane',
                     } as L.MarkerOptions).addTo(map)
+
+                    // Orange dot for villages that have archived memories
+                    if (cadasterId && contentCadastersRef.current.has(cadasterId)) {
+                      L.circleMarker(center, {
+                        radius: 5,
+                        fillColor: '#C17C5B',
+                        fillOpacity: 0.95,
+                        color: '#fff',
+                        weight: 1.5,
+                        pane: 'a3Pane',
+                        interactive: false,
+                      } as L.CircleMarkerOptions).addTo(map)
+                    }
                   }
                 },
               }).addTo(map)

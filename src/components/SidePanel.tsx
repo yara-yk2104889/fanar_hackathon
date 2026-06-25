@@ -4,10 +4,11 @@ import type { Interview, Photo, PlaceClickInfo, PlaceData, Segment } from '../ty
 interface Props {
   info: PlaceClickInfo | null
   place: PlaceData | null
+  loading?: boolean
   onClose: () => void
 }
 
-export default function SidePanel({ info, place, onClose }: Props) {
+export default function SidePanel({ info, place, loading, onClose }: Props) {
   const [tab, setTab] = useState<'testimonies' | 'photos'>('testimonies')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -29,7 +30,20 @@ export default function SidePanel({ info, place, onClose }: Props) {
         <button className="panel-close" onClick={handleClose}>×</button>
       </div>
 
-      {!place ? (
+      {loading ? (
+        <div className="empty-state">
+          <div style={{
+            width: 32, height: 32,
+            border: '3px solid var(--sage)',
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            animation: 'spin 0.9s linear infinite',
+            margin: '0 auto 0.8rem',
+          }} />
+          <p style={{ color: 'var(--muted)' }}>Loading memories…</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      ) : !place ? (
         <div className="empty-state">
           <div className="icon">🗺</div>
           <h3>No memories yet</h3>

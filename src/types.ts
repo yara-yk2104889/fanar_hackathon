@@ -45,6 +45,41 @@ export interface PlaceClickInfo {
   nameEn: string
   nameAr: string
   gov: string
+  cadasterId?: string
+}
+
+// ── API response types (from server.py) ──────────────────────────────────────
+
+export interface ApiSegment {
+  start: number
+  end: number
+  arabic: string
+  english: string
+  themes: string[]
+}
+
+export interface ApiInterview {
+  contributor?: string
+  claimed_year?: string
+  claimed_village?: string
+  summary?: { summary_en?: string; summary_ar?: string }
+  segments?: ApiSegment[]
+}
+
+export interface ApiPhoto {
+  description?: string
+  contributor_caption?: string
+  contributor?: string
+  claimed_year?: string
+  era_estimate?: string
+  tags_en?: string[]
+  tags_ar?: string[]
+}
+
+export interface ApiPlaceResponse {
+  cadaster_id: string
+  interviews: ApiInterview[]
+  photos: ApiPhoto[]
 }
 
 export interface SearchPhoto extends Photo {

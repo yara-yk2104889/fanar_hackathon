@@ -165,20 +165,49 @@ Return ONLY valid JSON:
 {"cadaster_id": "...", "cadaster_name_en": "...", "confidence": "high|medium|low", "reason": "one sentence"}
 If no cadaster fits well, set confidence to "low" and cadaster_id to null."""
 
+def _match_score(place: str, name_en: str) -> int:
+    """
+    Score a place name against a cadaster's English name.
+    3 = exact  |  2 = whole-word prefix  |  1 = substring  |  0 = no match
+
+    "Nabatieh" vs "Nabatieh"        → 3  (exact, wins immediately)
+    "Nabatieh" vs "Nabatieh El Tahta" → 1 (substring, loses to exact)
+    "Bint Jbeil" vs "Bint"          → 2 (prefix word boundary)
+    """
+    p = place.strip().lower()
+    n = (name_en or "").strip().lower()
+    if not p or not n:
+        return 0
+    if p == n:
+        return 3
+    if n.startswith(p + " ") or p.startswith(n + " "):
+        return 2
+    if p in n or n in p:
+        return 1
+    return 0
+
+
 def route(places: list, segments: list, cadasters: list) -> dict:
-    # Exact / substring name match first
-    candidates = []
+    # Score every (place, cadaster) pair; keep the best score per cadaster.
+    best: dict[str, tuple[dict, int]] = {}
     for place in places:
-        pl = place.lower()
         for cad in cadasters:
-            if pl in (cad["name_en"] or "").lower() or (cad["name_en"] or "").lower() in pl or place in (cad["name_ar"] or ""):
-                candidates.append(cad)
+            score = _match_score(place, cad["name_en"])
+            # Arabic substring match: treat as score 2 (reliable when it fires)
+            if score < 2 and place in (cad["name_ar"] or ""):
+                score = 2
+            if score > 0:
+                cid = cad["id"]
+                if cid not in best or score > best[cid][1]:
+                    best[cid] = (cad, score)
 
-    seen = set()
-    candidates = [c for c in candidates if not (c["id"] in seen or seen.add(c["id"]))]
-
-    if not candidates:
+    if not best:
         return {"status": "no_match", "extracted_places": places}
+
+    # Only pass candidates that achieved the highest score tier to the agent.
+    # An exact match (score 3) immediately beats any substring match (score 1).
+    max_score = max(s for _, s in best.values())
+    candidates = [cad for cad, s in best.values() if s == max_score]
 
     if len(candidates) == 1:
         return {
@@ -188,7 +217,7 @@ def route(places: list, segments: list, cadasters: list) -> dict:
             "confidence": "high",
         }
 
-    # Ambiguous → agent decides
+    # Still ambiguous at the same score tier → agent decides
     context = "\n".join(f"[{s['start']:.1f}s] {s['arabic']}" for s in segments[:6])
     cand_list = "\n".join(f"- {c['id']}: {c['name_en']} / {c['name_ar']}" for c in candidates)
 
