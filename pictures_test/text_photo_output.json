@@ -1,0 +1,64 @@
+{
+  "contributor": null,
+  "claimed_village": null,
+  "claimed_year": null,
+  "contributor_caption": null,
+  "inferred_locality": null,
+  "inferred_region": "unknown",
+  "era_estimate": "unknown",
+  "location_confidence": "low",
+  "location_clues": [],
+  "era_clues": [],
+  "year_source": "ai_inferred",
+  "village_source": "ai_inferred",
+  "image_path": "pictures_test\\text.jpeg",
+  "description": "A handwritten Arabic text on paper, possibly from a personal note or letter.",
+  "inspector": {
+    "scene_type": "portrait",
+    "setting": "handwritten note on paper",
+    "features": [
+      "Arabic calligraphy handwriting",
+      "ink-stained paper"
+    ],
+    "people_present": "none",
+    "architecture": "null",
+    "arabic_text_seen": [
+      "لا تَهْنِ حياةً لا تُشْبِك",
+      "ولَد تَقْلُ كلاماً لا يُمثّلك",
+      "ولا تَتَرَك بجَرَة لبيت معرَّك",
+      "ولَا تَتَسَامِم !",
+      "وَهُوَ أنتَ دوماً وا"
+    ],
+    "vegetation_landscape": "null",
+    "estimated_era": "unknown",
+    "cultural_markers": [
+      "Arabic script",
+      "handwriting style"
+    ],
+    "notes": "The handwriting appears to be informal and personal."
+  },
+  "verification": {
+    "decision": "flag",
+    "confidence": "medium",
+    "reasons": [],
+    "moderation_passed": true,
+    "visual_verdict": "clean",
+    "consistency_verdict": "minor_issues"
+  },
+  "tags_en": [
+    "Handwritten Text",
+    "Personal Note",
+    "Letter",
+    "Arabic Calligraphy"
+  ],
+  "tags_ar": [
+    "نص مكتوب بخط اليد",
+    "رسالة شخصية",
+    "خط عربي"
+  ],
+  "routing": {
+    "status": "no_anchor",
+    "note": "no village from contributor or vision model"
+  },
+  "status": "needs_review"
+}
