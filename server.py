@@ -25,19 +25,20 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-# ── Import pipelines at startup (no API calls at import time) ─────────────────
-from pipeline import run_pipeline
-from photo_agents import process_photo
+# Pipeline imports are done lazily inside each endpoint so a missing
+# dependency never prevents the server from starting.
 
 try:
     import search_engine
     _SEARCH_AVAILABLE = True
-except ImportError:
+except Exception:
     _SEARCH_AVAILABLE = False
-    print("[server] search_engine not available (numpy missing?)", file=sys.stderr)
 
 load_dotenv()
-sys.stdout.reconfigure(encoding="utf-8")
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 FANAR_KEY = os.getenv("FANAR_API_KEY")
 BASE      = "https://api.fanar.qa/v1"
@@ -65,6 +66,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Health check ─────────────────────────────────────────────────────────────
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
 
 
 # ── Index helpers ─────────────────────────────────────────────────────────────
@@ -173,6 +181,7 @@ def contribute_interview(
         shutil.copyfileobj(file.file, fh)
 
     try:
+        from pipeline import run_pipeline
         record = run_pipeline(
             video_path=str(upload_path),
             contributor_name=contributor or "Anonymous",
@@ -238,6 +247,7 @@ def contribute_photo(
         shutil.copyfileobj(image.file, fh)
 
     try:
+        from photo_agents import process_photo
         record = process_photo(
             image_path=str(upload_path),
             contributor_name=contributor or "Anonymous",

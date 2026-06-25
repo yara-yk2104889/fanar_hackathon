@@ -8,3 +8,6 @@ node_modules/
 dist/
 lbn_admin_boundaries.geojson/
 pictures_test/
+uploads/
+*_output.json
+*_evidence.json
