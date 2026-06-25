@@ -5,7 +5,7 @@ import SidePanel from './components/SidePanel'
 import SearchOverlay from './components/SearchOverlay'
 import ContributeModal from './components/ContributeModal'
 import ArchiveSidebar from './components/ArchiveSidebar'
-import { findPlaceByName, keywordSearch, PLACES } from './sampleData'
+import { findPlaceByName, keywordSearch } from './sampleData'
 import { API_BASE } from './config'
 import type {
   ApiInterview, ApiPhoto, ApiPlaceResponse,
@@ -148,24 +148,13 @@ export default function App() {
     setPanelInfo(null)
   }, [])
 
-  const handleSearchResultClick = useCallback((placeId: string, type: 'photo' | 'moment') => {
-    const place = PLACES[placeId]
-    if (!place) return
+  const handleSearchResultClick = useCallback((_placeId: string, _type: 'photo' | 'moment') => {
     setSearchResults(null)
-    mapRef.current?.flyTo(place.lat, place.lng)
-    setPanelInfo({ nameEn: place.nameEn, nameAr: place.nameAr, gov: place.gov })
-    setPanelPlace(place)
-    void type
   }, [])
 
-  const handleArchiveSelect = useCallback((placeId: string) => {
-    const place = PLACES[placeId]
-    if (!place) return
-    mapRef.current?.flyTo(place.lat, place.lng)
-    setPanelInfo({ nameEn: place.nameEn, nameAr: place.nameAr, gov: place.gov })
-    setPanelPlace(place)
-    setSearchResults(null)
-  }, [])
+  const handleArchiveSelect = useCallback((info: PlaceClickInfo) => {
+    handlePlaceClick(info)
+  }, [handlePlaceClick])
 
   return (
     <>

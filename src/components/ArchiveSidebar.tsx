@@ -1,44 +1,36 @@
-import { useState } from 'react'
-import { PLACES } from '../sampleData'
+import { useEffect, useState } from 'react'
+import { API_BASE } from '../config'
+import type { PlaceClickInfo } from '../types'
 
-type Tab = 'locations' | 'videos' | 'photos'
+interface ApiPlace {
+  cadaster_id: string
+  name_en: string
+  name_ar: string
+  interview_count: number
+  photo_count: number
+}
 
 interface Props {
-  onSelect: (placeId: string) => void
-}
-
-function flatInterviews() {
-  return Object.entries(PLACES).flatMap(([pid, place]) =>
-    place.interviews.map((iv) => ({
-      ...iv,
-      placeId: pid,
-      placeNameEn: place.nameEn,
-      placeNameAr: place.nameAr,
-    })),
-  )
-}
-
-function flatPhotos() {
-  return Object.entries(PLACES).flatMap(([pid, place]) =>
-    place.photos.map((ph) => ({
-      ...ph,
-      placeId: pid,
-      placeNameEn: place.nameEn,
-      placeNameAr: place.nameAr,
-    })),
-  )
+  onSelect: (info: PlaceClickInfo) => void
 }
 
 export default function ArchiveSidebar({ onSelect }: Props) {
-  const [tab, setTab] = useState<Tab>('locations')
+  const [places, setPlaces] = useState<ApiPlace[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const places = Object.entries(PLACES)
-  const interviews = flatInterviews()
-  const photos = flatPhotos()
+  useEffect(() => {
+    fetch(`${API_BASE}/api/places`)
+      .then(r => r.json() as Promise<{ places: ApiPlace[] }>)
+      .then(data => setPlaces(data.places ?? []))
+      .catch(() => setPlaces([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const totalInterviews = places.reduce((n, p) => n + p.interview_count, 0)
+  const totalPhotos     = places.reduce((n, p) => n + p.photo_count, 0)
 
   return (
     <div className="archive-sidebar">
-      {/* Header */}
       <div className="archive-header">
         <div className="archive-title">
           <span className="ar">الأرشيف</span>
@@ -47,85 +39,52 @@ export default function ArchiveSidebar({ onSelect }: Props) {
         </div>
         <div className="archive-stats">
           <span className="stat-pill">{places.length} locations</span>
-          <span className="stat-pill">{interviews.length} videos</span>
-          <span className="stat-pill">{photos.length} photos</span>
+          <span className="stat-pill">{totalInterviews} videos</span>
+          <span className="stat-pill">{totalPhotos} photos</span>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="archive-tabs">
-        <button
-          className={`archive-tab${tab === 'locations' ? ' active' : ''}`}
-          onClick={() => setTab('locations')}
-        >
-          📍 Locations
-        </button>
-        <button
-          className={`archive-tab${tab === 'videos' ? ' active' : ''}`}
-          onClick={() => setTab('videos')}
-        >
-          🎙 Videos
-        </button>
-        <button
-          className={`archive-tab${tab === 'photos' ? ' active' : ''}`}
-          onClick={() => setTab('photos')}
-        >
-          📷 Photos
-        </button>
-      </div>
-
-      {/* Scrollable list */}
       <div className="archive-list">
-        {tab === 'locations' &&
-          places.map(([pid, place]) => (
-            <div key={pid} className="arc-item" onClick={() => onSelect(pid)}>
-              <div className="arc-names">
-                <span className="arc-ar" dir="rtl">{place.nameAr}</span>
-                <span className="arc-en">{place.nameEn}</span>
-              </div>
-              <div className="arc-gov">{place.gov}</div>
-              <div className="arc-counts">
-                <span>🎙 {place.interviews.length} interview{place.interviews.length !== 1 ? 's' : ''}</span>
-                <span>📷 {place.photos.length} photo{place.photos.length !== 1 ? 's' : ''}</span>
-              </div>
-            </div>
-          ))}
+        {loading && (
+          <div className="empty-state" style={{ padding: '1.5rem 0' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '0.82rem' }}>Loading archive…</p>
+          </div>
+        )}
 
-        {tab === 'videos' &&
-          interviews.map((iv, i) => (
-            <div key={i} className="arc-item" onClick={() => onSelect(iv.placeId)}>
-              <div className="arc-place-tag">{iv.placeNameAr} · {iv.placeNameEn}</div>
-              <div className="arc-names">
-                <span className="arc-en">{iv.titleEn}</span>
-                <span className="arc-ar" dir="rtl">{iv.titleAr}</span>
-              </div>
-              <div className="arc-meta">
-                <span>{iv.contributor}</span>
-                <span className="arc-dot">·</span>
-                <span>{iv.year}</span>
-                <span className="arc-dot">·</span>
-                <span className="arc-dur">▶ {iv.duration}</span>
-              </div>
-            </div>
-          ))}
+        {!loading && places.length === 0 && (
+          <div className="empty-state" style={{ padding: '1.5rem 0' }}>
+            <div className="icon" style={{ fontSize: '1.6rem' }}>🗺</div>
+            <p style={{ color: 'var(--muted)', fontSize: '0.82rem', marginTop: '0.5rem' }}>
+              No memories yet.<br />Be the first to contribute!
+            </p>
+          </div>
+        )}
 
-        {tab === 'photos' &&
-          photos.map((ph, i) => (
-            <div key={i} className="arc-item arc-item--photo" onClick={() => onSelect(ph.placeId)}>
-              <div className="arc-place-tag">{ph.placeNameAr} · {ph.placeNameEn}</div>
-              <div className="arc-photo-row">
-                <div className="arc-icon">{ph.icon}</div>
-                <div>
-                  <div className="arc-desc">{ph.description}</div>
-                  <div className="arc-meta">
-                    <span>{ph.year}</span>
-                    <span className="arc-dot">·</span>
-                    <span>{ph.contributor}</span>
-                  </div>
-                </div>
-              </div>
+        {places.map(place => (
+          <div
+            key={place.cadaster_id}
+            className="arc-item"
+            onClick={() => onSelect({
+              nameEn: place.name_en,
+              nameAr: place.name_ar,
+              gov: '',
+              cadasterId: place.cadaster_id,
+            })}
+          >
+            <div className="arc-names">
+              {place.name_ar && <span className="arc-ar" dir="rtl">{place.name_ar}</span>}
+              <span className="arc-en">{place.name_en}</span>
             </div>
-          ))}
+            <div className="arc-counts">
+              {place.interview_count > 0 && (
+                <span>🎙 {place.interview_count} interview{place.interview_count !== 1 ? 's' : ''}</span>
+              )}
+              {place.photo_count > 0 && (
+                <span>📷 {place.photo_count} photo{place.photo_count !== 1 ? 's' : ''}</span>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )

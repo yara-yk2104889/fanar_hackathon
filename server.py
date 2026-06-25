@@ -81,11 +81,16 @@ def _save_index(index: dict) -> None:
         json.dump(index, f, indent=2, ensure_ascii=False)
 
 
-def _index_record(cadaster_id: str, kind: str, path: str) -> None:
+def _index_record(cadaster_id: str, kind: str, path: str,
+                   name_en: str = "", name_ar: str = "") -> None:
     index = _load_index()
     entry = index.setdefault(cadaster_id, {"interviews": [], "photos": []})
     if path not in entry.get(kind, []):
         entry.setdefault(kind, []).append(path)
+    if name_en and not entry.get("name_en"):
+        entry["name_en"] = name_en
+    if name_ar and not entry.get("name_ar"):
+        entry["name_ar"] = name_ar
     _save_index(index)
 
 
@@ -189,7 +194,10 @@ def contribute_interview(
             record["status"] = "published"
 
         cadaster_id, path = _save_interview(record, uid)
-        _index_record(cadaster_id, "interviews", path)
+        routing = record.get("routing") or {}
+        _index_record(cadaster_id, "interviews", path,
+                      name_en=routing.get("cadaster_name_en", ""),
+                      name_ar=routing.get("cadaster_name_ar", ""))
         if _SEARCH_AVAILABLE:
             search_engine._INDEX_BUILT = False
 
@@ -250,7 +258,10 @@ def contribute_photo(
             record["status"] = "needs_review"
 
         cadaster_id, path = _save_photo(record, uid)
-        _index_record(cadaster_id, "photos", path)
+        routing = record.get("routing") or {}
+        _index_record(cadaster_id, "photos", path,
+                      name_en=routing.get("cadaster_name_en", ""),
+                      name_ar=routing.get("cadaster_name_ar", ""))
         if _SEARCH_AVAILABLE:
             search_engine._INDEX_BUILT = False
 
@@ -317,6 +328,8 @@ def get_places():
         if n_i + n_p > 0:
             places.append({
                 "cadaster_id":     cadaster_id,
+                "name_en":         entry.get("name_en", cadaster_id),
+                "name_ar":         entry.get("name_ar", ""),
                 "interview_count": n_i,
                 "photo_count":     n_p,
             })
