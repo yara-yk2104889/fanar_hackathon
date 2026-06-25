@@ -2,4 +2,9 @@
 *.mp3
 *.wav
 *.m4a
+*.mp4
 __pycache__/
+node_modules/
+dist/
+lbn_admin_boundaries.geojson/
+pictures_test/
