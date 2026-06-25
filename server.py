@@ -23,6 +23,7 @@ from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 
 # Pipeline imports are done lazily inside each endpoint so a missing
@@ -73,6 +74,38 @@ app.add_middleware(
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# ── Image serving ─────────────────────────────────────────────────────────────
+
+@app.get("/api/image/{cadaster_id}/{filename}")
+def serve_image(cadaster_id: str, filename: str):
+    path = PHOTOS_DIR / cadaster_id / filename
+    if not path.exists():
+        raise HTTPException(404, "Image not found")
+    return FileResponse(str(path))
+
+
+# ── Cadaster coords lookup (from adminpoints GeoJSON) ─────────────────────────
+
+_COORDS_CACHE: dict = {}
+
+def _lookup_coords(cadaster_id: str):
+    global _COORDS_CACHE
+    if not _COORDS_CACHE and os.path.exists(CADASTER_GEOJSON):
+        try:
+            with open(CADASTER_GEOJSON, encoding="utf-8") as f:
+                gj = json.load(f)
+            for feat in gj.get("features", []):
+                p    = feat.get("properties", {})
+                geom = feat.get("geometry", {})
+                cid  = str(p.get("adm3_pcode") or p.get("adm3_name") or "")
+                if cid and geom.get("type") == "Point":
+                    lng, lat = geom["coordinates"]
+                    _COORDS_CACHE[cid] = (lat, lng)
+        except Exception:
+            pass
+    return _COORDS_CACHE.get(str(cadaster_id))
 
 
 # ── Index helpers ─────────────────────────────────────────────────────────────
@@ -270,6 +303,22 @@ def contribute_photo(
             record["status"] = "published"
 
         cadaster_id, path = _save_photo(record, uid)
+
+        # Save the image permanently so we can serve it
+        img_filename = f"{uid}_image{ext}"
+        img_dest = PHOTOS_DIR / str(cadaster_id) / img_filename
+        shutil.copy2(upload_path, img_dest)
+        record["image_url"] = f"/api/image/{cadaster_id}/{img_filename}"
+
+        # Store map coordinates from the adminpoints GeoJSON
+        coords = _lookup_coords(str(cadaster_id))
+        if coords:
+            record["lat"], record["lng"] = coords
+
+        # Re-save with image_url and coords added
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+
         routing = record.get("routing") or {}
         _index_record(cadaster_id, "photos", path,
                       name_en=routing.get("cadaster_name_en", ""),

@@ -28,6 +28,9 @@ export interface Photo {
   tagsEn: string[]
   tagsAr: string[]
   filePath?: string
+  imageUrl?: string
+  lat?: number
+  lng?: number
 }
 
 export interface PlaceData {
@@ -78,6 +81,9 @@ export interface ApiPhoto {
   tags_en?: string[]
   tags_ar?: string[]
   _file_path?: string
+  image_url?: string
+  lat?: number
+  lng?: number
 }
 
 export interface ApiPlaceResponse {

@@ -7,9 +7,10 @@ interface Props {
   loading?: boolean
   onClose: () => void
   onDelete?: (filePath: string, type: 'interview' | 'photo') => void
+  onPhotoZoom?: (lat: number, lng: number) => void
 }
 
-export default function SidePanel({ info, place, loading, onClose, onDelete }: Props) {
+export default function SidePanel({ info, place, loading, onClose, onDelete, onPhotoZoom }: Props) {
   const [tab, setTab] = useState<'testimonies' | 'photos'>('testimonies')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -107,6 +108,9 @@ export default function SidePanel({ info, place, loading, onClose, onDelete }: P
                       ph={ph}
                       onDelete={ph.filePath && onDelete
                         ? () => onDelete(ph.filePath!, 'photo')
+                        : undefined}
+                      onZoom={ph.lat && ph.lng && onPhotoZoom
+                        ? () => onPhotoZoom(ph.lat!, ph.lng!)
                         : undefined}
                     />
                   ))
@@ -238,10 +242,43 @@ function SegmentRow({ seg }: { seg: Segment }) {
   )
 }
 
-function PhotoCard({ ph, onDelete }: { ph: Photo; onDelete?: () => void }) {
+function PhotoCard({ ph, onDelete, onZoom }: { ph: Photo; onDelete?: () => void; onZoom?: () => void }) {
   return (
-    <div className="photo-card">
-      <div className="photo-thumb">{ph.icon}</div>
+    <div className="photo-card" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+      {/* Image preview */}
+      <div
+        style={{
+          width: '100%', aspectRatio: '16/9', overflow: 'hidden',
+          borderRadius: '6px 6px 0 0', background: '#e8ede9',
+          cursor: onZoom ? 'pointer' : 'default', position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+        onClick={onZoom}
+        title={onZoom ? 'Click to zoom to location on map' : undefined}
+      >
+        {ph.imageUrl ? (
+          <>
+            <img
+              src={ph.imageUrl}
+              alt={ph.description}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            {onZoom && (
+              <div style={{
+                position: 'absolute', bottom: 6, right: 6,
+                background: 'rgba(0,0,0,0.45)', color: '#fff',
+                fontSize: '0.68rem', borderRadius: 4, padding: '2px 6px',
+              }}>
+                📍 zoom to location
+              </div>
+            )}
+          </>
+        ) : (
+          <span style={{ fontSize: '2rem', opacity: 0.4 }}>{ph.icon}</span>
+        )}
+      </div>
+
+      {/* Info */}
       <div className="photo-info">
         <div className="photo-caption">{ph.description}</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

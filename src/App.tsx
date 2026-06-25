@@ -55,6 +55,9 @@ function convertPhotos(recs: ApiPhoto[], info: PlaceClickInfo): Photo[] {
     tagsEn: rec.tags_en ?? [],
     tagsAr: rec.tags_ar ?? [],
     filePath: rec._file_path,
+    imageUrl: rec.image_url ? `${API_BASE}${rec.image_url}` : undefined,
+    lat: rec.lat,
+    lng: rec.lng,
   }))
 }
 
@@ -128,6 +131,10 @@ export default function App() {
         .catch(err => console.warn('[app] district place lookup failed', err))
         .finally(() => setPlaceLoading(false))
     }
+  }, [])
+
+  const handlePhotoZoom = useCallback((lat: number, lng: number) => {
+    mapRef.current?.flyTo(lat, lng)
   }, [])
 
   const handleDeleteMemory = useCallback(async (filePath: string, type: 'interview' | 'photo') => {
@@ -207,6 +214,7 @@ export default function App() {
               loading={placeLoading}
               onClose={handleClosePanel}
               onDelete={handleDeleteMemory}
+              onPhotoZoom={handlePhotoZoom}
             />
 
             <SearchOverlay
