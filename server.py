@@ -266,6 +266,8 @@ def contribute_photo(
         }
         if not gate["passed"]:
             record["status"] = "needs_review"
+        else:
+            record["status"] = "published"
 
         cadaster_id, path = _save_photo(record, uid)
         routing = record.get("routing") or {}
@@ -316,7 +318,8 @@ def get_place(cadaster_id: str):
         try:
             with open(path, encoding="utf-8") as f:
                 rec = json.load(f)
-            if rec.get("status") in ("published", "accept"):
+            # Show anything that isn't explicitly rejected/refused
+            if rec.get("status") not in ("rejected", "reject", "refused"):
                 rec["_file_path"] = Path(path).resolve().relative_to(data_abs).as_posix()
                 photos.append(rec)
         except Exception:

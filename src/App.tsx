@@ -5,7 +5,7 @@ import SidePanel from './components/SidePanel'
 import SearchOverlay from './components/SearchOverlay'
 import ContributeModal from './components/ContributeModal'
 import ArchiveSidebar from './components/ArchiveSidebar'
-import { findPlaceByName, keywordSearch } from './sampleData'
+import { keywordSearch } from './sampleData'
 import { API_BASE } from './config'
 import type {
   ApiInterview, ApiPhoto, ApiPlaceResponse,
@@ -102,9 +102,31 @@ export default function App() {
         .catch(err => console.warn('[app] place fetch failed', err))
         .finally(() => setPlaceLoading(false))
     } else {
-      // District-level click or no cadasterId — fall back to sample data
-      setPanelPlace(findPlaceByName(info.nameEn))
-      setPlaceLoading(false)
+      // District-level click — search the index by name
+      setPlaceLoading(true)
+      setPanelPlace(null)
+      fetch(`${API_BASE}/api/places`)
+        .then(r => r.json() as Promise<{ places: { cadaster_id: string; name_en: string; name_ar: string }[] }>)
+        .then(data => {
+          const nameL = info.nameEn.toLowerCase()
+          const match = (data.places ?? []).find(p =>
+            p.name_en.toLowerCase() === nameL ||
+            p.name_en.toLowerCase().includes(nameL) ||
+            nameL.includes(p.name_en.toLowerCase())
+          )
+          if (match) {
+            return fetch(`${API_BASE}/api/place/${encodeURIComponent(match.cadaster_id)}`)
+              .then(r => r.json() as Promise<import('./types').ApiPlaceResponse>)
+              .then(placeData => {
+                const converted = convertApiPlace(placeData, { ...info, cadasterId: match.cadaster_id })
+                if (converted.interviews.length > 0 || converted.photos.length > 0) {
+                  setPanelPlace(converted)
+                }
+              })
+          }
+        })
+        .catch(err => console.warn('[app] district place lookup failed', err))
+        .finally(() => setPlaceLoading(false))
     }
   }, [])
 
