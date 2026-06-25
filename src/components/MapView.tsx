@@ -90,6 +90,9 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
     })
     mapRef.current = map
 
+    // Re-read container size after layout settles (fixes mobile half-map bug)
+    setTimeout(() => map.invalidateSize(), 120)
+
     // Base tile: borders + geography, no labels (for surrounding countries)
     L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
