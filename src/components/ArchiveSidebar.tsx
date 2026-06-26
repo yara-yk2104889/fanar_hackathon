@@ -42,6 +42,7 @@ interface ArchiveInterview {
 interface Props {
   onSelect: (info: PlaceClickInfo) => void
   onZoom?: (lat: number, lng: number) => void
+  refreshKey?: number
 }
 
 // ── Color palette for location cards ─────────────────────────────────────────
@@ -171,7 +172,7 @@ function InterviewRow({
 
 type Tab = 'locations' | 'photos' | 'videos'
 
-export default function ArchiveSidebar({ onSelect, onZoom }: Props) {
+export default function ArchiveSidebar({ onSelect, onZoom, refreshKey }: Props) {
   const [places, setPlaces]     = useState<ApiPlace[]>([])
   const [photos, setPhotos]     = useState<ArchivePhoto[]>([])
   const [interviews, setInterviews] = useState<ArchiveInterview[]>([])
@@ -179,6 +180,7 @@ export default function ArchiveSidebar({ onSelect, onZoom }: Props) {
   const [tab, setTab]           = useState<Tab>('locations')
 
   useEffect(() => {
+    setLoading(true)
     Promise.all([
       fetch(`${API_BASE}/api/places`).then(r => r.json()),
       fetch(`${API_BASE}/api/archive`).then(r => r.json()),
@@ -190,7 +192,7 @@ export default function ArchiveSidebar({ onSelect, onZoom }: Props) {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [refreshKey])
 
   const totalInterviews = places.reduce((n, p) => n + p.interview_count, 0)
   const totalPhotos     = places.reduce((n, p) => n + p.photo_count, 0)

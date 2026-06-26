@@ -81,6 +81,12 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
   const [searchLoading, setSearchLoading] = useState(false)
   const [contributeOpen, setContributeOpen] = useState(false)
+  const [uploadRefreshKey, setUploadRefreshKey] = useState(0)
+
+  const handleUploadSuccess = useCallback(() => {
+    setUploadRefreshKey(k => k + 1)
+    mapRef.current?.refreshDots()
+  }, [])
   const [searchQuery, setSearchQuery] = useState('')
 
   const mapRef = useRef<MapViewHandle>(null)
@@ -262,6 +268,7 @@ export default function App() {
           <ArchiveSidebar
             onSelect={handleArchiveSelect}
             onZoom={(lat, lng) => mapRef.current?.flyTo(lat, lng)}
+            refreshKey={uploadRefreshKey}
           />
 
           <div className="map-area">
@@ -286,7 +293,7 @@ export default function App() {
         </div>
       </div>
 
-      <ContributeModal open={contributeOpen} onClose={() => setContributeOpen(false)} />
+      <ContributeModal open={contributeOpen} onClose={() => setContributeOpen(false)} onSuccess={handleUploadSuccess} />
     </>
   )
 }

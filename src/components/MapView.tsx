@@ -13,6 +13,7 @@ import { API_BASE } from '../config'
 export interface MapViewHandle {
   flyTo(lat: number, lng: number): void
   clearSelection(): void
+  refreshDots(): void
 }
 
 interface Props {
@@ -66,6 +67,8 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
   const selectedLayerRef = useRef<L.Path | null>(null)
   // cadaster IDs that have published content — populated from /api/places on map init
   const contentCadastersRef = useRef<Set<string>>(new Set())
+  const cadasterCentersRef  = useRef<Map<string, L.LatLngTuple>>(new Map())
+  const contentDotsLayerRef = useRef<L.LayerGroup | null>(null)
 
   useEffect(() => { onClickRef.current = onPlaceClick }, [onPlaceClick])
 
@@ -78,6 +81,34 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
         selectedLayerRef.current.setStyle(A2_STYLE)
         selectedLayerRef.current = null
       }
+    },
+    refreshDots() {
+      fetch(`${API_BASE}/api/places`)
+        .then(r => r.json() as Promise<{ places: { cadaster_id: string }[] }>)
+        .then(data => {
+          const ids = new Set((data.places ?? []).map(p => p.cadaster_id))
+          const dotsLayer = contentDotsLayerRef.current
+          if (dotsLayer) {
+            ids.forEach(id => {
+              if (!contentCadastersRef.current.has(id)) {
+                const center = cadasterCentersRef.current.get(id)
+                if (center) {
+                  L.circleMarker(center, {
+                    radius: 8,
+                    fillColor: '#A8491A',
+                    fillOpacity: 1,
+                    color: '#fff',
+                    weight: 1.8,
+                    pane: 'a3Pane',
+                    interactive: false,
+                  } as L.CircleMarkerOptions).addTo(dotsLayer)
+                }
+              }
+            })
+          }
+          contentCadastersRef.current = ids
+        })
+        .catch(() => {})
     },
   }))
 
@@ -95,6 +126,9 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
 
     // Re-read container size after layout settles (fixes mobile half-map bug)
     setTimeout(() => map.invalidateSize(), 120)
+
+    // Layer group for content dots — kept separate so refreshDots() can add to it later
+    contentDotsLayerRef.current = L.layerGroup().addTo(map)
 
     // Fetch cadasters with archived content so we can add dots when admin3 loads
     fetch(`${API_BASE}/api/places`)
@@ -299,6 +333,8 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
 
                   const center = geomCenter(feature.geometry)
                   if (center) {
+                    if (cadasterId) cadasterCentersRef.current.set(cadasterId, center)
+
                     // Permanent village name label at polygon center
                     L.marker(center, {
                       icon: L.divIcon({
@@ -321,7 +357,7 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
                         weight: 1.8,
                         pane: 'a3Pane',
                         interactive: false,
-                      } as L.CircleMarkerOptions).addTo(map)
+                      } as L.CircleMarkerOptions).addTo(contentDotsLayerRef.current ?? map)
                     }
                   }
                 },

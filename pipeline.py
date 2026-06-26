@@ -150,12 +150,16 @@ def load_cadasters(geojson_path: str) -> list:
     cadasters = []
     for feat in data.get("features", []):
         p = feat["properties"]
-        if p.get("admin_level") == 3:
-            cadasters.append({
-                "id": p.get("adm3_pcode") or p.get("adm3_name"),
-                "name_en": p.get("name", ""),
-                "name_ar": p.get("name1", ""),
-            })
+        # Use adm3_pcode presence to identify cadaster features; avoids
+        # admin_level int-vs-string type mismatch that empties the list.
+        cid = p.get("adm3_pcode") or p.get("adm3_name")
+        if not cid:
+            continue
+        cadasters.append({
+            "id": cid,
+            "name_en": p.get("name", ""),
+            "name_ar": p.get("name1", ""),
+        })
     return cadasters
 
 
@@ -303,8 +307,15 @@ def run_pipeline(
         print("[+] Routing to Lebanese cadaster...")
         context = " ".join(s["arabic"] for s in segments[:4])
         val = validate_places(claimed_village, all_places, context)
-        anchor = ([val["primary_anchor"]] if val.get("primary_anchor")
-                  else val.get("lebanese_localities") or list(dict.fromkeys(all_places)))
+        # Always try the contributor's typed village first — do not let the
+        # LLM validator discard it.  AI-extracted places are appended after.
+        if claimed_village:
+            extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
+            anchor = [claimed_village] + extras
+        elif val.get("primary_anchor"):
+            anchor = [val["primary_anchor"]]
+        else:
+            anchor = val.get("lebanese_localities") or list(dict.fromkeys(all_places))
         cadasters = load_cadasters(cadaster_geojson)
         routing = route(anchor, segments, cadasters)
         routing["place_validation"] = val

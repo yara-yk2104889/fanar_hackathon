@@ -357,7 +357,7 @@ def get_place(cadaster_id: str):
         try:
             with open(path, encoding="utf-8") as f:
                 rec = json.load(f)
-            if rec.get("status") == "published":
+            if rec.get("status") not in ("rejected", "reject", "refused"):
                 rec["_file_path"] = Path(path).resolve().relative_to(data_abs).as_posix()
                 interviews.append(rec)
         except Exception:
@@ -440,7 +440,7 @@ def get_archive():
             try:
                 with open(path, encoding="utf-8") as f:
                     rec = json.load(f)
-                if rec.get("status") == "published":
+                if rec.get("status") not in ("rejected", "reject", "refused"):
                     summary = rec.get("summary") or {}
                     themes: list = []
                     for seg in rec.get("segments", []):

@@ -4,6 +4,7 @@ import { API_BASE } from '../config'
 interface Props {
   open: boolean
   onClose: () => void
+  onSuccess?: () => void
 }
 
 type Stage = 'idle' | 'working' | 'success' | 'error'
@@ -22,7 +23,7 @@ const PHOTO_STEPS = [
 ]
 const STEP_DELAYS = [2000, 45000, 35000, 8000]
 
-export default function ContributeModal({ open, onClose }: Props) {
+export default function ContributeModal({ open, onClose, onSuccess }: Props) {
   const [utype, setUtype]           = useState<'video' | 'photo'>('video')
   const [stage, setStage]           = useState<Stage>('idle')
   const [stepIndex, setStepIndex]   = useState(0)
@@ -144,6 +145,7 @@ export default function ContributeModal({ open, onClose }: Props) {
         throw new Error((data as { detail?: string }).detail ?? `Server error ${resp.status}`)
       }
       setStage('success')
+      onSuccess?.()
     } catch (err: unknown) {
       stopTimer()
       setStage('error')
