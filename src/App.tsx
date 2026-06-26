@@ -255,7 +255,10 @@ export default function App() {
         </header>
 
         <div className="map-wrap">
-          <ArchiveSidebar onSelect={handleArchiveSelect} />
+          <ArchiveSidebar
+            onSelect={handleArchiveSelect}
+            onZoom={(lat, lng) => mapRef.current?.flyTo(lat, lng)}
+          />
 
           <div className="map-area">
             <MapView ref={mapRef} onPlaceClick={handlePlaceClick} />

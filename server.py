@@ -388,14 +388,80 @@ def get_places():
         n_i = len(entry.get("interviews", []))
         n_p = len(entry.get("photos", []))
         if n_i + n_p > 0:
+            coords = _lookup_coords(cadaster_id)
             places.append({
                 "cadaster_id":     cadaster_id,
                 "name_en":         entry.get("name_en", cadaster_id),
                 "name_ar":         entry.get("name_ar", ""),
                 "interview_count": n_i,
                 "photo_count":     n_p,
+                "lat": coords[0] if coords else None,
+                "lng": coords[1] if coords else None,
             })
     return {"places": places}
+
+
+# ── GET /api/archive ──────────────────────────────────────────────────────────
+
+@app.get("/api/archive")
+def get_archive():
+    """Flat list of all published photos and interviews for the sidebar."""
+    index = _load_index()
+    photos_out: list = []
+    interviews_out: list = []
+
+    for cadaster_id, entry in index.items():
+        name_en = entry.get("name_en", cadaster_id)
+        name_ar = entry.get("name_ar", "")
+        coords  = _lookup_coords(cadaster_id)
+        lat = coords[0] if coords else None
+        lng = coords[1] if coords else None
+
+        for path in entry.get("photos", []):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    rec = json.load(f)
+                if rec.get("status") not in ("rejected", "reject", "refused"):
+                    photos_out.append({
+                        "cadaster_id":      cadaster_id,
+                        "cadaster_name_en": name_en,
+                        "cadaster_name_ar": name_ar,
+                        "lat": lat,
+                        "lng": lng,
+                        "description":         rec.get("description", ""),
+                        "contributor_caption": rec.get("contributor_caption"),
+                        "tags_en": rec.get("tags_en", []),
+                        "tags_ar": rec.get("tags_ar", []),
+                    })
+            except Exception:
+                pass
+
+        for path in entry.get("interviews", []):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    rec = json.load(f)
+                if rec.get("status") == "published":
+                    summary = rec.get("summary") or {}
+                    themes: list = []
+                    for seg in rec.get("segments", []):
+                        themes.extend(seg.get("themes", []))
+                    themes = list(dict.fromkeys(themes))[:5]
+                    interviews_out.append({
+                        "cadaster_id":      cadaster_id,
+                        "cadaster_name_en": name_en,
+                        "cadaster_name_ar": name_ar,
+                        "lat": lat,
+                        "lng": lng,
+                        "claimed_village": rec.get("claimed_village"),
+                        "claimed_year":    rec.get("claimed_year"),
+                        "contributor":     rec.get("contributor", "Anonymous"),
+                        "summary_en":      summary.get("summary_en", ""),
+                        "themes":          themes,
+                    })
+            except Exception:
+                pass
+
+    return {"photos": photos_out, "interviews": interviews_out}
 
 
 # ── DELETE /api/memory ────────────────────────────────────────────────────────
