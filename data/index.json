@@ -18,10 +18,15 @@
     "name_en": "Maad"
   },
   "53377": {
-    "interviews": [
-      "data\\interviews\\53377\\313446c1759b4424bd07df1d5149b616_output.json"
-    ],
+    "interviews": [],
     "photos": [],
     "name_en": "Aaynata Baalbek"
+  },
+  "26289": {
+    "interviews": [
+      "data\\interviews\\26289\\99aafe38be9047c1b86d2d5ba73b867b_output.json"
+    ],
+    "photos": [],
+    "name_en": "Aain Kfaa"
   }
 }
