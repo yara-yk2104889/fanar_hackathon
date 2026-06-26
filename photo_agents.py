@@ -110,11 +110,20 @@ def _moderate(text: str) -> dict:
 
 # ── Agent 1: Describe ───────────────────────────────────────────────────────
 
-DESCRIBE_PROMPT = """Write a 1–2 sentence caption for this photo, like the caption under a newspaper image.
+DESCRIBE_PROMPT_BASE = """Write a 1–2 sentence caption for this photo, like the caption under a newspaper image.
 State what is shown and where/when if visible. Be factual and concise — no lists, no speculation."""
 
-def describe_photo(image_path: str) -> str:
-    return _vision(image_path, DESCRIBE_PROMPT)
+DESCRIBE_PROMPT_WITH_CAPTION = """The contributor provided this caption: "{caption}"
+
+Write a 1–2 sentence factual description of this photo that builds on the contributor's caption above.
+Do not contradict it. Do not speculate beyond what is visible or stated. Be concise."""
+
+def describe_photo(image_path: str, contributor_caption: str = None) -> str:
+    if contributor_caption and contributor_caption.strip():
+        prompt = DESCRIBE_PROMPT_WITH_CAPTION.format(caption=contributor_caption.strip())
+    else:
+        prompt = DESCRIBE_PROMPT_BASE
+    return _vision(image_path, prompt)
 
 
 # ── Agent 2: Locate ─────────────────────────────────────────────────────────
@@ -301,7 +310,7 @@ def process_photo(
 
     # Step 1: Describe
     print("\n[1/4] Describing...")
-    description = describe_photo(image_path)
+    description = describe_photo(image_path, contributor_caption)
     print(f"      {description[:200]}...")
 
     # Step 2: Inspect

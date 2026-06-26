@@ -250,12 +250,14 @@ def _save_photo(record: dict, uid: str):
 
 def contribute_interview(
     file: UploadFile = File(...),
-    contributor:     Optional[str] = Form(None),
-    claimed_village: Optional[str] = Form(None),
-    claimed_year:    Optional[str] = Form(None),
+    contributor:              Optional[str] = Form(None),
+    claimed_village:          Optional[str] = Form(None),
+    claimed_year:             Optional[str] = Form(None),
+    contributor_description:  Optional[str] = Form(None),
 ):
     """
-    Multipart: file (audio/video), contributor, claimed_village, claimed_year.
+    Multipart: file (audio/video), contributor, claimed_village, claimed_year,
+    contributor_description.
     Runs the full pipeline (transcribe → translate → refine → extract → summarize → route).
     Pipeline is slow (~30 s – 2 min); the response arrives when it completes.
     """
@@ -275,6 +277,7 @@ def contribute_interview(
             claimed_year=claimed_year or None,
             cadaster_geojson=CADASTER_GEOJSON,
         )
+        record["contributor_description"] = contributor_description or None
 
         gate = moderation_gate(record.get("full_arabic_transcript", ""))
         record["moderation"] = {
@@ -436,6 +439,42 @@ def get_place(cadaster_id: str):
             pass
 
     return {"cadaster_id": cadaster_id, "interviews": interviews, "photos": photos}
+
+
+# ── GET /api/villages ────────────────────────────────────────────────────────
+
+_VILLAGES_CACHE: list = []
+
+@app.get("/api/villages")
+def get_villages():
+    """All Lebanese cadaster (admin-3) villages for the searchable village picker."""
+    global _VILLAGES_CACHE
+    if _VILLAGES_CACHE:
+        return {"villages": _VILLAGES_CACHE}
+    if not os.path.exists(CADASTER_GEOJSON):
+        return {"villages": []}
+    try:
+        with open(CADASTER_GEOJSON, encoding="utf-8") as f:
+            gj = json.load(f)
+        villages = []
+        for feat in gj.get("features", []):
+            p = feat["properties"]
+            cid = p.get("adm3_pcode") or p.get("adm3_name")
+            name_en = p.get("name") or ""
+            if not cid or not name_en:
+                continue
+            villages.append({
+                "id": str(cid),
+                "name_en": name_en,
+                "name_ar": p.get("name1") or "",
+                "district": p.get("adm2_name") or "",
+                "governorate": p.get("adm1_name") or "",
+            })
+        villages.sort(key=lambda v: v["name_en"].lower())
+        _VILLAGES_CACHE = villages
+        return {"villages": villages}
+    except Exception:
+        return {"villages": []}
 
 
 # ── GET /api/places ───────────────────────────────────────────────────────────

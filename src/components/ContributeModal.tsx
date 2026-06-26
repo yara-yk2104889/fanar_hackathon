@@ -1,5 +1,82 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE } from '../config'
+
+// ── Searchable village picker ─────────────────────────────────────────────────
+
+interface Village { id: string; name_en: string; name_ar: string; district: string; governorate: string }
+
+function VillageSearch({ value, onChange, error }: {
+  value: string
+  onChange: (v: string) => void
+  error?: string
+}) {
+  const [villages, setVillages] = useState<Village[]>([])
+  const [query, setQuery]       = useState(value)
+  const [open, setOpen]         = useState(false)
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/villages`)
+      .then(r => r.json())
+      .then(d => setVillages(d.villages ?? []))
+      .catch(() => {})
+  }, [])
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return villages.slice(0, 60)
+    return villages
+      .filter(v =>
+        v.name_en.toLowerCase().includes(q) ||
+        v.name_ar.includes(query.trim()) ||
+        v.district.toLowerCase().includes(q)
+      )
+      .slice(0, 60)
+  }, [query, villages])
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        className="form-input"
+        value={query}
+        placeholder="Search village or town…"
+        style={error ? { borderColor: '#c0392b' } : undefined}
+        onChange={e => { setQuery(e.target.value); setOpen(true); onChange('') }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && filtered.length > 0 && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0,
+          background: '#fff', border: '1px solid var(--sage)',
+          borderRadius: 6, maxHeight: 210, overflowY: 'auto',
+          zIndex: 999, boxShadow: '0 4px 14px rgba(0,0,0,0.13)',
+        }}>
+          {filtered.map(v => (
+            <div
+              key={v.id}
+              onMouseDown={() => { setQuery(v.name_en); onChange(v.name_en); setOpen(false) }}
+              style={{ padding: '0.45rem 0.75rem', cursor: 'pointer', borderBottom: '1px solid #f0f0f0',
+                       display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f5f9f7')}
+              onMouseLeave={e => (e.currentTarget.style.background = '')}
+            >
+              <span>
+                <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{v.name_en}</span>
+                <span style={{ color: 'var(--muted)', fontSize: '0.75rem', marginLeft: 6 }}>
+                  {v.district} · {v.governorate}
+                </span>
+              </span>
+              {v.name_ar && (
+                <span style={{ color: 'var(--muted)', fontSize: '0.82rem' }} dir="rtl">{v.name_ar}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p style={{ color: '#c0392b', fontSize: '0.78rem', margin: '0.2rem 0 0' }}>{error}</p>}
+    </div>
+  )
+}
 
 interface Props {
   open: boolean
@@ -28,6 +105,8 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
   const [stage, setStage]           = useState<Stage>('idle')
   const [stepIndex, setStepIndex]   = useState(0)
   const [errorMsg, setErrorMsg]     = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [selectedVillage, setSelectedVillage] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl]   = useState<string | null>(null)
   const [isDragOver, setIsDragOver]   = useState(false)
@@ -37,12 +116,12 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
     return () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }
   }, [previewUrl])
 
-  const fileRef        = useRef<HTMLInputElement>(null)
-  const contributorRef = useRef<HTMLInputElement>(null)
-  const villageRef     = useRef<HTMLInputElement>(null)
-  const yearRef        = useRef<HTMLInputElement>(null)
-  const captionRef     = useRef<HTMLTextAreaElement>(null)
-  const timerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fileRef           = useRef<HTMLInputElement>(null)
+  const contributorRef    = useRef<HTMLInputElement>(null)
+  const yearRef           = useRef<HTMLInputElement>(null)
+  const descriptionRef    = useRef<HTMLTextAreaElement>(null)
+  const captionRef        = useRef<HTMLTextAreaElement>(null)
+  const timerRef          = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const stopTimer = () => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
@@ -64,6 +143,8 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
     setStage('idle')
     setStepIndex(0)
     setErrorMsg('')
+    setFieldErrors({})
+    setSelectedVillage('')
     setSelectedFile(null)
     setPreviewUrl(null)
     stopTimer()
@@ -113,6 +194,22 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
       return
     }
 
+    // Validate required fields for interviews
+    if (utype === 'video') {
+      const errs: Record<string, string> = {}
+      if (!selectedVillage)
+        errs.village = 'Please select a village from the list.'
+      if (!yearRef.current?.value.trim())
+        errs.year = 'Year (or range) is required.'
+      if (!descriptionRef.current?.value.trim())
+        errs.description = 'A short description is required.'
+      if (Object.keys(errs).length > 0) {
+        setFieldErrors(errs)
+        return
+      }
+    }
+    setFieldErrors({})
+
     const steps = utype === 'photo' ? PHOTO_STEPS : VIDEO_STEPS
     const endpoint = utype === 'photo'
       ? `${API_BASE}/api/contribute/photo`
@@ -122,14 +219,15 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
     if (utype === 'photo') {
       body.append('image', selectedFile)
       body.append('contributor', contributorRef.current?.value.trim() || 'Anonymous')
-      body.append('claimed_village', villageRef.current?.value.trim() || '')
+      body.append('claimed_village', selectedVillage)
       body.append('caption', captionRef.current?.value.trim() || '')
       body.append('year', yearRef.current?.value.trim() || '')
     } else {
       body.append('file', selectedFile)
       body.append('contributor', contributorRef.current?.value.trim() || 'Anonymous')
-      body.append('claimed_village', villageRef.current?.value.trim() || '')
+      body.append('claimed_village', selectedVillage)
       body.append('claimed_year', yearRef.current?.value.trim() || '')
+      body.append('contributor_description', descriptionRef.current?.value.trim() || '')
     }
 
     setStage('working')
@@ -300,17 +398,49 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
             <div className="form-field">
               <label className="form-label">
                 <span className="ar">القرية</span> Village / Town
+                {utype === 'video' && <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>}
+                {utype === 'photo' && <small style={{ color: 'var(--muted)' }}> (optional)</small>}
               </label>
-              <input ref={villageRef} className="form-input" type="text" placeholder="e.g. Bint Jbeil, Tyre, Nabatieh…" />
+              <VillageSearch
+                value={selectedVillage}
+                onChange={v => { setSelectedVillage(v); if (v) setFieldErrors(e => ({ ...e, village: '' })) }}
+                error={fieldErrors.village}
+              />
             </div>
 
             <div className="form-field">
               <label className="form-label">
-                <span className="ar">السنة</span> Approximate year{' '}
-                <small style={{ color: 'var(--muted)' }}>(optional)</small>
+                <span className="ar">السنة</span> Year{utype === 'video' ? '' : ' (approximate)'}
+                {utype === 'video' && <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>}
+                {utype === 'photo' && <small style={{ color: 'var(--muted)' }}> (optional)</small>}
               </label>
-              <input ref={yearRef} className="form-input" type="number" placeholder="e.g. 1975" min={1900} max={2030} />
+              <input
+                ref={yearRef}
+                className="form-input"
+                type="text"
+                placeholder={utype === 'video' ? 'e.g. 1975 or 1980–1990' : 'e.g. 1975'}
+                style={fieldErrors.year ? { borderColor: '#c0392b' } : undefined}
+                onChange={() => fieldErrors.year && setFieldErrors(e => ({ ...e, year: '' }))}
+              />
+              {fieldErrors.year && <p style={{ color: '#c0392b', fontSize: '0.78rem', margin: '0.2rem 0 0' }}>{fieldErrors.year}</p>}
             </div>
+
+            {utype === 'video' && (
+              <div className="form-field">
+                <label className="form-label">
+                  <span className="ar">وصف</span> Short description
+                  <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>
+                </label>
+                <textarea
+                  ref={descriptionRef}
+                  className="form-textarea"
+                  placeholder="Briefly describe what this interview is about — who is speaking and what they remember…"
+                  style={fieldErrors.description ? { borderColor: '#c0392b' } : undefined}
+                  onChange={() => fieldErrors.description && setFieldErrors(e => ({ ...e, description: '' }))}
+                />
+                {fieldErrors.description && <p style={{ color: '#c0392b', fontSize: '0.78rem', margin: '0.2rem 0 0' }}>{fieldErrors.description}</p>}
+              </div>
+            )}
 
             {utype === 'photo' && (
               <div className="form-field">
