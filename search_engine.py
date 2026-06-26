@@ -183,7 +183,7 @@ def _init_embedder():
             texts if isinstance(texts, list) else [texts], convert_to_numpy=True
         )
         print("[embedder] sentence-transformers loaded (paraphrase-multilingual-MiniLM-L12-v2)")
-    except ImportError:
+    except Exception:
         _EMBED_FN = None
         print("[embedder] no embedding backend available — using keyword search")
 
