@@ -251,7 +251,7 @@ function PhotoCard({ ph, onDelete, onZoom }: { ph: Photo; onDelete?: () => void;
       <div
         className="photo-card"
         style={{ flexDirection: 'column', alignItems: 'stretch', cursor: 'pointer' }}
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); onZoom?.() }}
       >
         <div style={{
           width: '100%', aspectRatio: '16/9', overflow: 'hidden',

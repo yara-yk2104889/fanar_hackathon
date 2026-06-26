@@ -1,10 +1,10 @@
-import type { SearchResults } from '../types'
+import type { SearchMoment, SearchPhoto, SearchResults } from '../types'
 
 interface Props {
   results: SearchResults | null
   query: string
   onClose: () => void
-  onResultClick: (placeId: string, type: 'photo' | 'moment') => void
+  onResultClick: (result: SearchPhoto | SearchMoment, type: 'photo' | 'moment') => void
 }
 
 function fmtTime(sec: number) {
@@ -47,7 +47,7 @@ export default function SearchOverlay({ results, query, onClose, onResultClick }
                     <div
                       key={i}
                       className="result-item"
-                      onClick={() => onResultClick(m.placeId, 'moment')}
+                      onClick={() => onResultClick(m, 'moment')}
                     >
                       <div className="result-icon">🎙</div>
                       <div className="result-text">
@@ -76,7 +76,7 @@ export default function SearchOverlay({ results, query, onClose, onResultClick }
                     <div
                       key={p.id}
                       className="result-item"
-                      onClick={() => onResultClick(p.placeId, 'photo')}
+                      onClick={() => onResultClick(p, 'photo')}
                     >
                       <div className="result-icon">{p.icon}</div>
                       <div className="result-text">

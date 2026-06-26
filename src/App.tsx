@@ -5,11 +5,10 @@ import SidePanel from './components/SidePanel'
 import SearchOverlay from './components/SearchOverlay'
 import ContributeModal from './components/ContributeModal'
 import ArchiveSidebar from './components/ArchiveSidebar'
-import { keywordSearch } from './sampleData'
 import { API_BASE } from './config'
 import type {
   ApiInterview, ApiPhoto, ApiPlaceResponse,
-  Interview, Photo, PlaceClickInfo, PlaceData, SearchResults, Segment,
+  Interview, Photo, PlaceClickInfo, PlaceData, SearchResults, SearchPhoto, SearchMoment, Segment,
 } from './types'
 
 // ── Convert API response to local PlaceData format ───────────────────────────
@@ -170,16 +169,69 @@ export default function App() {
     mapRef.current?.clearSelection()
   }, [])
 
-  const handleSearch = useCallback((q: string) => {
+  const handleSearch = useCallback(async (q: string) => {
     if (!q.trim()) return
     setSearchQuery(q)
-    setSearchResults(keywordSearch(q))
+    setSearchResults(null)
     setPanelInfo(null)
+    try {
+      const resp = await fetch(`${API_BASE}/api/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q }),
+      })
+      const data = await resp.json()
+      const photos: SearchPhoto[] = (data.photos ?? []).map((p: Record<string, unknown>, i: number) => ({
+        id: (p.id as string) ?? `ph-${i}`,
+        placeId: (p.cadaster_id as string) ?? '',
+        placeNameEn: (p.cadaster as string) ?? (p.inferred_locality as string) ?? '',
+        placeNameAr: '',
+        icon: '📷',
+        description: (p.description as string) ?? '',
+        year: (p.era_estimate as string) ?? '',
+        contributor: (p.contributor as string) ?? 'Anonymous',
+        tagsEn: (p.tags_en as string[]) ?? [],
+        tagsAr: (p.tags_ar as string[]) ?? [],
+        imageUrl: p.image_url ? `${API_BASE}${p.image_url}` : undefined,
+        lat: p.lat as number | undefined,
+        lng: p.lng as number | undefined,
+      }))
+      const moments: SearchMoment[] = (data.interview_moments ?? []).map((m: Record<string, unknown>, i: number) => {
+        const ts = m.timestamp as [number, number] | null
+        return {
+          interviewId: (m.id as string) ?? `iv-${i}`,
+          interviewTitle: `Interview from ${(m.cadaster as string) ?? '—'}`,
+          placeId: (m.cadaster_id as string) ?? '',
+          placeNameEn: (m.cadaster as string) ?? '',
+          placeNameAr: '',
+          start: ts?.[0] ?? 0,
+          end: ts?.[1] ?? 0,
+          ar: (m.snippet_ar as string) ?? '',
+          en: (m.snippet as string) ?? '',
+          themes: (m.themes as string[]) ?? [],
+        }
+      })
+      setSearchResults({ query: q, photos, moments })
+    } catch (err) {
+      console.warn('[search] failed', err)
+      setSearchResults({ query: q, photos: [], moments: [] })
+    }
   }, [])
 
-  const handleSearchResultClick = useCallback((_placeId: string, _type: 'photo' | 'moment') => {
-    setSearchResults(null)
-  }, [])
+  const handleSearchResultClick = useCallback((result: SearchPhoto | SearchMoment, type: 'photo' | 'moment') => {
+    if (type === 'photo') {
+      const photo = result as SearchPhoto
+      if (photo.lat && photo.lng) {
+        mapRef.current?.flyTo(photo.lat, photo.lng)
+      }
+    }
+    handlePlaceClick({
+      nameEn: result.placeNameEn,
+      nameAr: result.placeNameAr,
+      gov: '',
+      cadasterId: result.placeId || undefined,
+    })
+  }, [handlePlaceClick])
 
   const handleArchiveSelect = useCallback((info: PlaceClickInfo) => {
     handlePlaceClick(info)

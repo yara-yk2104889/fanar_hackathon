@@ -70,7 +70,9 @@ def build_index(records_dir: str) -> list:
             continue
         with open(path, encoding="utf-8") as f:
             record = json.load(f)
-        cadaster = (record.get("routing") or {}).get("cadaster_name_en", "")
+        routing = record.get("routing") or {}
+        cadaster = routing.get("cadaster_name_en", "")
+        cadaster_id = routing.get("cadaster_id", "")
         for i, seg in enumerate(record.get("segments", [])):
             keywords = list(dict.fromkeys(
                 seg.get("keywords_en", []) +
@@ -82,6 +84,7 @@ def build_index(records_dir: str) -> list:
                 "type": "interview_segment",
                 "id": f"{os.path.basename(path)}::seg{i}",
                 "cadaster": cadaster,
+                "cadaster_id": cadaster_id,
                 "text_en": seg.get("english", ""),
                 "text_ar": seg.get("arabic", ""),
                 "keywords": keywords,
@@ -102,11 +105,14 @@ def build_index(records_dir: str) -> list:
     for path in glob.glob(os.path.join(records_dir, "**", "*_photo_output.json"), recursive=True):
         with open(path, encoding="utf-8") as f:
             record = json.load(f)
-        cadaster = (record.get("routing") or {}).get("cadaster_name_en", "")
+        routing = record.get("routing") or {}
+        cadaster = routing.get("cadaster_name_en", "")
+        cadaster_id = routing.get("cadaster_id", "")
         items.append({
             "type": "photo",
             "id": os.path.basename(path),
             "cadaster": cadaster,
+            "cadaster_id": cadaster_id,
             "text_en": record.get("description", ""),
             "text_ar": "",
             "keywords": list(dict.fromkeys(
@@ -116,6 +122,9 @@ def build_index(records_dir: str) -> list:
             "source": {
                 "file": path,
                 "image_path": record.get("image_path"),
+                "image_url": record.get("image_url"),
+                "lat": record.get("lat"),
+                "lng": record.get("lng"),
                 "contributor": record.get("contributor"),
                 "claimed_village": record.get("claimed_village"),
                 "claimed_year": record.get("claimed_year"),
@@ -329,6 +338,10 @@ def search(query: str, records_dir: str = ".", top_k: int = 10) -> dict:
             photos.append({
                 "id": item["id"],
                 "cadaster": item["cadaster"],
+                "cadaster_id": item.get("cadaster_id", ""),
+                "image_url": item["source"].get("image_url"),
+                "lat": item["source"].get("lat"),
+                "lng": item["source"].get("lng"),
                 "image_path": item["source"].get("image_path"),
                 "description": item["text_en"],
                 "tags_en": [k for k in item["keywords"] if re.search(r"[a-zA-Z]", k)],
@@ -345,6 +358,7 @@ def search(query: str, records_dir: str = ".", top_k: int = 10) -> dict:
             moments.append({
                 "id": item["id"],
                 "cadaster": item["cadaster"],
+                "cadaster_id": item.get("cadaster_id", ""),
                 "snippet": item["text_en"][:300],
                 "snippet_ar": item["text_ar"][:300],
                 "timestamp": ts,
