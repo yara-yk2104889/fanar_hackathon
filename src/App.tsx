@@ -79,6 +79,7 @@ export default function App() {
   const [panelPlace, setPanelPlace] = useState<PlaceData | null>(null)
   const [placeLoading, setPlaceLoading] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [contributeOpen, setContributeOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -173,6 +174,7 @@ export default function App() {
     if (!q.trim()) return
     setSearchQuery(q)
     setSearchResults(null)
+    setSearchLoading(true)
     setPanelInfo(null)
     try {
       const resp = await fetch(`${API_BASE}/api/search`, {
@@ -215,6 +217,8 @@ export default function App() {
     } catch (err) {
       console.warn('[search] failed', err)
       setSearchResults({ query: q, photos: [], moments: [] })
+    } finally {
+      setSearchLoading(false)
     }
   }, [])
 
@@ -248,7 +252,7 @@ export default function App() {
             <span className="dot">·</span>
             <span className="en">Dhākira</span>
           </div>
-          <SearchBar onSearch={handleSearch} />
+          <SearchBar onSearch={handleSearch} loading={searchLoading} />
           <button className="topbar-contribute" onClick={() => setContributeOpen(true)}>
             + Contribute
           </button>
@@ -287,9 +291,9 @@ export default function App() {
   )
 }
 
-function SearchBar({ onSearch }: { onSearch: (q: string) => void }) {
+function SearchBar({ onSearch, loading }: { onSearch: (q: string) => void; loading?: boolean }) {
   const [value, setValue] = useState('')
-  const submit = () => { if (value.trim()) onSearch(value.trim()) }
+  const submit = () => { if (value.trim() && !loading) onSearch(value.trim()) }
   return (
     <div className="topbar-search">
       <input
@@ -300,7 +304,11 @@ function SearchBar({ onSearch }: { onSearch: (q: string) => void }) {
         placeholder="Search memories… ابحث في الذاكرة"
         autoComplete="off"
       />
-      <button onClick={submit}>→</button>
+      <button onClick={submit} disabled={loading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {loading
+          ? <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+          : '→'}
+      </button>
     </div>
   )
 }

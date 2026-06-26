@@ -87,25 +87,25 @@ def _chat_json(system: str, user: str, timeout: int = 60) -> dict:
     return _parse_json(raw)
 
 
+SAFETY_THRESHOLD = 0.5
+
 def _moderate(text: str) -> dict:
-    """Run FanarGuard moderation on text. Fails open with a warning if unavailable."""
+    """Run Fanar-Guard-2 moderation on text. Fails open so no contribution is silently lost."""
     try:
         resp = requests.post(
             f"{BASE}/moderations",
             headers=AUTH_JSON,
-            json={"input": text, "model": "FanarGuard"},
+            json={"model": "Fanar-Guard-2", "prompt": text, "response": text},
             timeout=30,
         )
         resp.raise_for_status()
-        result = resp.json().get("results", [{}])[0]
-        return {
-            "passed": not result.get("flagged", False),
-            "flagged_categories": [k for k, v in result.get("categories", {}).items() if v],
-        }
-    except requests.HTTPError as e:
-        if e.response.status_code in (404, 422, 501):
-            return {"passed": True, "note": "FanarGuard endpoint not reachable — skipped, flag for manual review"}
-        raise
+        data = resp.json()
+        safety = data.get("safety")
+        ca = data.get("cultural_awareness")
+        passed = (float(safety) >= SAFETY_THRESHOLD) if safety is not None else True
+        return {"passed": passed, "safety": safety, "cultural_awareness": ca}
+    except Exception:
+        return {"passed": True, "note": "Fanar-Guard-2 unavailable — flagged for manual review"}
 
 
 # ── Agent 1: Describe ───────────────────────────────────────────────────────

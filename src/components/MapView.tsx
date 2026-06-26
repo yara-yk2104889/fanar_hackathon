@@ -314,11 +314,11 @@ const MapView = forwardRef<MapViewHandle, Props>(function MapView({ onPlaceClick
                     // Orange dot for villages that have archived memories
                     if (cadasterId && contentCadastersRef.current.has(cadasterId)) {
                       L.circleMarker(center, {
-                        radius: 5,
-                        fillColor: '#C17C5B',
-                        fillOpacity: 0.95,
+                        radius: 8,
+                        fillColor: '#A8491A',
+                        fillOpacity: 1,
                         color: '#fff',
-                        weight: 1.5,
+                        weight: 1.8,
                         pane: 'a3Pane',
                         interactive: false,
                       } as L.CircleMarkerOptions).addTo(map)

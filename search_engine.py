@@ -307,28 +307,51 @@ def search(query: str, records_dir: str = ".", top_k: int = 10) -> dict:
 
     print(f"\n[search] {query!r}")
 
-    # Step 1: Expand
+    # Step 1: Expand (fail-safe: fall back to raw query on any error)
     print("  [1/3] Expanding query...")
-    expanded = _expand_query(query)
+    try:
+        expanded = _expand_query(query)
+    except Exception as e:
+        print(f"        expand failed ({e}) — using raw query")
+        expanded = {"terms_en": [query], "terms_ar": []}
     print(f"        en={expanded['terms_en']}")
     print(f"        ar={expanded['terms_ar']}")
     all_terms = expanded["terms_en"] + expanded["terms_ar"]
 
     # Step 2: Retrieve
+    # Always run keyword search as a reliable baseline — exact tag/description
+    # matches must never be blocked by a failed embedding or reranker call.
     print("  [2/3] Retrieving candidates...")
     top_n = min(top_k * 3, 30)
+    keyword_candidates = _keyword_retrieve(all_terms, _INDEX, top_n)
+
     if _VECTORS is not None:
         q_vec = _EMBED_FN([" ".join(all_terms)])
         scores = _cosine_scores(q_vec, _VECTORS)
         top_idx = np.argsort(scores)[::-1][:top_n]
-        candidates = [(_INDEX[i], float(scores[i])) for i in top_idx if scores[i] > 0.1]
+        embed_candidates = [(_INDEX[i], float(scores[i])) for i in top_idx if scores[i] > 0.05]
+        # Merge: embedding results first, then keyword-only items not already included
+        seen_ids = {item["id"] for item, _ in embed_candidates}
+        candidates = embed_candidates + [
+            (item, score) for item, score in keyword_candidates
+            if item["id"] not in seen_ids
+        ]
     else:
-        candidates = _keyword_retrieve(all_terms, _INDEX, top_n)
+        candidates = keyword_candidates
     print(f"        {len(candidates)} candidate(s)")
 
-    # Step 3: Re-rank
+    # Step 3: Re-rank (fail-safe: fall back to keyword results on any error or empty return)
     print("  [3/3] Re-ranking with Fanar...")
-    ranked = _rerank(query, candidates)[:top_k]
+    try:
+        ranked = _rerank(query, candidates)[:top_k]
+    except Exception as e:
+        print(f"        rerank failed ({e}) — using keyword results")
+        ranked = [(item, score, "") for item, score in keyword_candidates[:top_k]]
+
+    if not ranked and keyword_candidates:
+        print("        reranker returned nothing — falling back to keyword results")
+        ranked = [(item, score, "") for item, score in keyword_candidates[:top_k]]
+
     print(f"        {len(ranked)} result(s) after re-rank")
 
     # Group by type
