@@ -47,7 +47,7 @@ BASE      = "https://api.fanar.qa/v1"
 AUTH_JSON = {"Authorization": f"Bearer {FANAR_KEY}", "Content-Type": "application/json"}
 
 CADASTER_GEOJSON = "lbn_admin_boundaries.geojson/lbn_adminpoints.geojson"
-SAFETY_THRESHOLD = 0.5   # handles both binary (0/1) and continuous scores
+SAFETY_THRESHOLD = 3.5  # Fanar-Guard-2 returns 0–5; higher = safer. Harmful ~0.9, benign ~4.6+.
 
 UPLOADS_DIR    = Path("uploads")
 DATA_DIR       = Path("data")

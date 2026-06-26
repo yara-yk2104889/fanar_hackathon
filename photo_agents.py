@@ -87,13 +87,14 @@ def _chat_json(system: str, user: str, timeout: int = 60) -> dict:
     return _parse_json(raw)
 
 
-SAFETY_THRESHOLD = 0.5
+SAFETY_THRESHOLD = 3.5  # Fanar-Guard-2 returns 0–5; higher = safer. Harmful ~0.9, benign ~4.6+.
 
 def _moderate(text: str) -> dict:
     """Run Fanar-Guard-2 moderation on text. Fails open so no contribution is silently lost."""
     try:
         resp = requests.post(
             f"{BASE}/moderations",
+        
             headers=AUTH_JSON,
             json={"model": "Fanar-Guard-2", "prompt": text, "response": text},
             timeout=30,
