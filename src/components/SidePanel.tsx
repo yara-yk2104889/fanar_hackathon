@@ -194,12 +194,28 @@ function InterviewCard({
             </button>
           </div>
 
-          {/* Video stub */}
-          <div className="video-stub">
-            <div className="play-btn">▶</div>
-            <span className="dur">{iv.duration}</span>
-            <span className="by">{iv.contributor}</span>
-          </div>
+          {/* Media player */}
+          {iv.mediaUrl ? (
+            /\.(mp3|m4a|aac|wav|ogg)$/i.test(iv.mediaUrl) ? (
+              <audio
+                controls
+                src={iv.mediaUrl}
+                style={{ width: '100%', marginBottom: '0.5rem', borderRadius: 6 }}
+              />
+            ) : (
+              <video
+                controls
+                src={iv.mediaUrl}
+                style={{ width: '100%', maxHeight: 220, borderRadius: 6, marginBottom: '0.5rem', background: '#000', display: 'block' }}
+              />
+            )
+          ) : (
+            <div className="video-stub" style={{ opacity: 0.45 }}>
+              <div className="play-btn">▶</div>
+              <span className="dur">{iv.duration}</span>
+              <span className="by" style={{ fontStyle: 'italic' }}>media not stored</span>
+            </div>
+          )}
 
           {/* AI summary */}
           <div className="ai-summary">

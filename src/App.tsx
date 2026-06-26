@@ -40,6 +40,7 @@ function convertInterviews(recs: ApiInterview[], info: PlaceClickInfo): Intervie
       summaryAr: rec.summary?.summary_ar ?? '',
       segments,
       filePath: rec._file_path,
+      mediaUrl: rec.media_url ? `${API_BASE}${rec.media_url}` : undefined,
     }
   })
 }

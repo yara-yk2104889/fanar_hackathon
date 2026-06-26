@@ -17,13 +17,14 @@ import sys
 import json
 import uuid
 import shutil
+import mimetypes
 import requests
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from dotenv import load_dotenv
 
 # Pipeline imports are done lazily inside each endpoint so a missing
@@ -84,6 +85,58 @@ def serve_image(cadaster_id: str, filename: str):
     if not path.exists():
         raise HTTPException(404, "Image not found")
     return FileResponse(str(path))
+
+
+@app.get("/api/media/interviews/{cadaster_id}/{filename}")
+async def serve_interview_media(cadaster_id: str, filename: str, request: Request):
+    path = INTERVIEWS_DIR / cadaster_id / filename
+    if not path.exists() or not path.is_file():
+        raise HTTPException(404, "Media file not found")
+
+    file_size = path.stat().st_size
+    media_type = mimetypes.guess_type(str(path))[0] or "application/octet-stream"
+    range_header = request.headers.get("range")
+
+    if not range_header:
+        return FileResponse(str(path), media_type=media_type,
+                            headers={"Accept-Ranges": "bytes"})
+
+    # Parse "bytes=start-end"
+    try:
+        spec = range_header.strip().removeprefix("bytes=")
+        start_str, end_str = spec.split("-", 1)
+        start = int(start_str)
+        end = int(end_str) if end_str.strip() else file_size - 1
+        end = min(end, file_size - 1)
+    except Exception:
+        raise HTTPException(416, "Invalid Range header")
+
+    if start > end or start >= file_size:
+        raise HTTPException(416, "Range not satisfiable")
+
+    chunk_size = end - start + 1
+
+    def _iter():
+        with open(str(path), "rb") as f:
+            f.seek(start)
+            remaining = chunk_size
+            while remaining > 0:
+                data = f.read(min(65536, remaining))
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+
+    return StreamingResponse(
+        _iter(),
+        status_code=206,
+        media_type=media_type,
+        headers={
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(chunk_size),
+        },
+    )
 
 
 # ── Cadaster coords lookup (from adminpoints GeoJSON) ─────────────────────────
@@ -234,6 +287,14 @@ def contribute_interview(
             record["status"] = "needs_review"
         else:
             record["status"] = "published"
+
+        # Move uploaded media to permanent storage before saving the record
+        dest_cadaster = (record.get("routing") or {}).get("cadaster_id") or "unrouted"
+        media_dir = INTERVIEWS_DIR / str(dest_cadaster)
+        media_dir.mkdir(parents=True, exist_ok=True)
+        media_dest = media_dir / f"{uid}{ext}"
+        shutil.move(str(upload_path), str(media_dest))
+        record["media_url"] = f"/api/media/interviews/{dest_cadaster}/{uid}{ext}"
 
         cadaster_id, path = _save_interview(record, uid)
         routing = record.get("routing") or {}

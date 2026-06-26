@@ -17,6 +17,7 @@ export interface Interview {
   summaryAr: string
   segments: Segment[]
   filePath?: string
+  mediaUrl?: string
 }
 
 export interface Photo {
@@ -70,6 +71,7 @@ export interface ApiInterview {
   summary?: { summary_en?: string; summary_ar?: string }
   segments?: ApiSegment[]
   _file_path?: string
+  media_url?: string
 }
 
 export interface ApiPhoto {

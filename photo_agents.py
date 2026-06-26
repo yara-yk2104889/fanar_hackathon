@@ -300,51 +300,44 @@ def process_photo(
     print(f"\n{'='*60}\nPHOTO PIPELINE: {image_path}\n{'='*60}")
 
     # Step 1: Describe
-    print("\n[1/5] Describing...")
+    print("\n[1/4] Describing...")
     description = describe_photo(image_path)
     print(f"      {description[:200]}...")
 
-    # Step 2: Locate
-    print("\n[2/5] Locating...")
-    location = locate_photo(image_path)
-    print(f"      inferred_region={location['inferred_region']} | inferred_locality={location['inferred_locality']} | era={location['era_estimate']} | confidence={location['confidence']}")
-    if location["location_clues"]:
-        print(f"      clues={location['location_clues']}")
-
-    # Contributor's words take priority; AI fills the gap
-    effective_year    = claimed_year    or location["era_estimate"]
-    effective_village = claimed_village or location["inferred_locality"]
-    year_source    = "contributor" if claimed_year    else "ai_inferred"
-    village_source = "contributor" if claimed_village else "ai_inferred"
-
-    # Step 3: Inspect
-    print("\n[3/5] Inspecting...")
+    # Step 2: Inspect
+    print("\n[2/4] Inspecting...")
     inspector = inspect_photo(image_path)
     print(f"      scene={inspector.get('scene_type')} | era={inspector.get('estimated_era')}")
     print(f"      features={inspector.get('features')}")
 
-    # Step 4: Verify
-    print("\n[4/5] Verifying...")
-    verification = verify_photo(image_path, description, inspector, contributor_caption, effective_year)
-    print(f"      decision={verification['decision']} | confidence={verification['confidence']}")
-    if verification["reasons"]:
-        print(f"      reasons={verification['reasons']}")
-
-    # Step 5: Tag
-    print("\n[5/5] Tagging...")
+    # Step 3: Tag
+    print("\n[3/4] Tagging...")
     tags = tag_photo(description, inspector)
     print(f"      tags_en={tags['tags_en']}")
     print(f"      tags_ar={tags['tags_ar']}")
 
-    # Place (no step number — uses text model, not vision)
+    # Step 4: Verify
+    print("\n[4/4] Verifying...")
+    verification = verify_photo(image_path, description, inspector, contributor_caption, claimed_year)
+    print(f"      decision={verification['decision']} | confidence={verification['confidence']}")
+    if verification["reasons"]:
+        print(f"      reasons={verification['reasons']}")
+
+    # Place (uses text model — contributor village is the sole anchor)
     routing = None
     if cadaster_geojson and os.path.exists(cadaster_geojson):
         print("\n[+] Placing...")
         context_places = inspector.get("arabic_text_seen", [])
-        val = validate_places(effective_village, context_places, description[:1000])
-        anchor = ([val["primary_anchor"]] if val.get("primary_anchor")
-                  else ([effective_village] if effective_village else []))
-        print(f"      anchor={anchor} ({village_source}) | validate_places confidence={val.get('confidence')}")
+        val = validate_places(claimed_village, context_places, description[:1000])
+        # Contributor's typed village always goes first; don't let the LLM discard it
+        if claimed_village:
+            extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
+            anchor = [claimed_village] + extras
+        elif val.get("primary_anchor"):
+            anchor = [val["primary_anchor"]]
+        else:
+            anchor = []
+        print(f"      anchor={anchor} | validate_places primary={val.get('primary_anchor')}")
 
         if anchor:
             from pipeline import load_cadasters, route
@@ -353,7 +346,7 @@ def process_photo(
             routing["place_validation"] = val
             print(f"      status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
         else:
-            routing = {"status": "no_anchor", "note": "no village from contributor or vision model"}
+            routing = {"status": "no_anchor", "note": "no village provided by contributor"}
     else:
         print("\n[+] Placing... skipped (no GeoJSON path provided)")
 
@@ -363,20 +356,9 @@ def process_photo(
 
     record = {
         "contributor": contributor_name,
-        # Contributor-provided — sacred, never overwritten, may be null
         "claimed_village": claimed_village,
         "claimed_year": claimed_year,
         "contributor_caption": contributor_caption,
-        # AI-inferred — clearly labelled, used only when contributor didn't provide
-        "inferred_locality": location["inferred_locality"],
-        "inferred_region": location["inferred_region"],
-        "era_estimate": location["era_estimate"],
-        "location_confidence": location["confidence"],
-        "location_clues": location["location_clues"],
-        "era_clues": location["era_clues"],
-        # Which source drove routing
-        "year_source": year_source,
-        "village_source": village_source,
         "image_path": image_path,
         "description": description,
         "inspector": inspector,
