@@ -279,17 +279,7 @@ def contribute_interview(
         )
         record["contributor_description"] = contributor_description or None
 
-        gate = moderation_gate(record.get("full_arabic_transcript", ""))
-        record["moderation"] = {
-            "safety":             gate["safety"],
-            "cultural_awareness": gate["cultural_awareness"],
-        }
-
-        routing_status = (record.get("routing") or {}).get("status", "needs_review")
-        if not gate["passed"] or routing_status not in ("matched", "agent_routed"):
-            record["status"] = "needs_review"
-        else:
-            record["status"] = "published"
+        record["status"] = "published"
 
         # Move uploaded media to permanent storage before saving the record
         dest_cadaster = (record.get("routing") or {}).get("cadaster_id") or "unrouted"
@@ -361,10 +351,11 @@ def contribute_photo(
             "safety":             gate["safety"],
             "cultural_awareness": gate["cultural_awareness"],
         }
-        if not gate["passed"]:
-            record["status"] = "needs_review"
-        else:
+        if record.get("status") != "rejected":
             record["status"] = "published"
+        if not gate["passed"] and record.get("status") != "rejected":
+            record["flagged"] = True
+            record["flag_reason"] = "safety_threshold"
 
         cadaster_id, path = _save_photo(record, uid)
 

@@ -41,6 +41,7 @@ function convertInterviews(recs: ApiInterview[], info: PlaceClickInfo): Intervie
       segments,
       filePath: rec._file_path,
       mediaUrl: rec.media_url ? `${API_BASE}${rec.media_url}` : undefined,
+      flagged: rec.flagged ?? false,
     }
   })
 }
@@ -58,6 +59,7 @@ function convertPhotos(recs: ApiPhoto[], info: PlaceClickInfo): Photo[] {
     imageUrl: rec.image_url ? `${API_BASE}${rec.image_url}` : undefined,
     lat: rec.lat,
     lng: rec.lng,
+    flagged: rec.flagged ?? false,
   }))
 }
 

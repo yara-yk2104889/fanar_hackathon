@@ -169,6 +169,9 @@ function InterviewCard({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <div className="year">{iv.year}</div>
+          {iv.flagged && (
+            <span title="Flagged by safety filter" style={{ color: '#e67e22', fontSize: '0.78rem', lineHeight: 1 }}>⚠</span>
+          )}
           {onDelete && <DeleteBtn onDelete={onDelete} />}
         </div>
       </div>
@@ -283,7 +286,12 @@ function PhotoCard({ ph, onDelete, onZoom }: { ph: Photo; onDelete?: () => void;
           <div className="photo-caption" style={{ WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {ph.description}
           </div>
-          <div className="photo-year">{ph.year}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <div className="photo-year">{ph.year}</div>
+            {ph.flagged && (
+              <span title="Flagged by safety filter" style={{ color: '#e67e22', fontSize: '0.78rem', lineHeight: 1 }}>⚠</span>
+            )}
+          </div>
           <div className="photo-tags">
             {ph.tagsEn.slice(0, 3).map(t => <span key={t} className="chip">{t}</span>)}
           </div>

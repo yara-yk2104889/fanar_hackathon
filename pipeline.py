@@ -18,6 +18,30 @@ AUTH_JSON = {**AUTH, "Content-Type": "application/json"}
 
 WORDS_PER_CHUNK = 150  # stay well under 4k-word translation cap
 
+SAFETY_THRESHOLD = 3.5  # Fanar-Guard-2 returns 0–5; higher = safer. Harmful ~0.9, benign ~4.6+.
+
+def moderation_gate(text: str) -> dict:
+    """Run Fanar-Guard-2 on text. Fails open — errors set passed=True so nothing is silently lost."""
+    if not text or not text.strip():
+        return {"passed": True, "safety": None, "cultural_awareness": None}
+    try:
+        resp = requests.post(
+            f"{BASE}/moderations",
+            headers=AUTH_JSON,
+            json={"model": "Fanar-Guard-2", "prompt": text, "response": text},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        safety = data.get("safety")
+        ca = data.get("cultural_awareness")
+        passed = (float(safety) >= SAFETY_THRESHOLD) if safety is not None else True
+        return {"passed": passed, "safety": safety, "cultural_awareness": ca}
+    except Exception as exc:
+        print(f"[moderation] error: {exc}", file=sys.stderr)
+        return {"passed": True, "safety": None, "cultural_awareness": None, "error": str(exc)}
+
+
 # ── Step 1: Transcribe ──────────────────────────────────────────────────────
 
 def transcribe(file_path: str) -> dict:
@@ -271,6 +295,43 @@ def run_pipeline(
     print(f"      {len(full_arabic.split())} words | {len(raw_segs)} raw STT segments")
     print(f"\n--- TRANSCRIPT PREVIEW ---\n{full_arabic[:400]}...\n")
 
+    # Moderation gate — short-circuit before spending quota on flagged content
+    print("[MOD] Moderating transcript...")
+    gate = moderation_gate(full_arabic)
+    print(f"      safety={gate.get('safety')} passed={gate['passed']}")
+    if not gate["passed"]:
+        print("      [FLAGGED] Safety threshold not met — publishing with flag.")
+        record = {
+            "contributor": contributor_name,
+            "claimed_village": claimed_village,
+            "claimed_year": claimed_year,
+            "status": "published",
+            "flagged": True,
+            "flag_reason": "safety_threshold",
+            "full_arabic_transcript": full_arabic,
+            "full_english_transcript": "",
+            "moderation": {"safety": gate.get("safety"), "cultural_awareness": gate.get("cultural_awareness")},
+            "summary": None,
+            "routing": None,
+            "segments": [],
+        }
+        out = video_path.rsplit(".", 1)[0] + "_output.json"
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+        print(f"\nSaved → {out}")
+        return record
+
+    def _is_content_filter(exc: Exception) -> bool:
+        r = getattr(exc, "response", None)
+        if r is None or r.status_code != 400:
+            return False
+        try:
+            return r.json().get("error", {}).get("code") == "content_filter"
+        except Exception:
+            return False
+
+    chat_filter_partial = False
+
     # Step 2
     print("[2/5] Chunking...")
     segments = chunk_segments(raw_segs)
@@ -282,12 +343,28 @@ def run_pipeline(
     for i, seg in enumerate(segments):
         print(f"  [{i+1}/{len(segments)}] {seg['start']:.1f}s – {seg['end']:.1f}s")
         draft_en = translate(seg["arabic"])
-        ref = refine_segment(seg["arabic"], draft_en)
+        try:
+            ref = refine_segment(seg["arabic"], draft_en)
+        except Exception as exc:
+            if _is_content_filter(exc):
+                print(f"      [CHAT FILTER] refine_segment skipped on segment {i+1} — using raw text.")
+                ref = {"arabic_clean": seg["arabic"], "english": draft_en, "corrections": [], "low_confidence_spans": []}
+                chat_filter_partial = True
+            else:
+                raise
         seg["arabic_raw"]   = seg["arabic"]
         seg["arabic"]       = ref["arabic_clean"]
         seg["english"]      = ref["english"]
         seg["corrections"]  = ref["corrections"]
-        meta = extract(seg["arabic"], seg["english"])
+        try:
+            meta = extract(seg["arabic"], seg["english"])
+        except Exception as exc:
+            if _is_content_filter(exc):
+                print(f"      [CHAT FILTER] extract skipped on segment {i+1} — no metadata for this segment.")
+                meta = {}
+                chat_filter_partial = True
+            else:
+                raise
         seg["places"]      = meta.get("places", [])
         seg["people"]      = meta.get("people", [])
         seg["themes"]      = meta.get("themes", [])
@@ -298,7 +375,15 @@ def run_pipeline(
 
     # Step 5
     print("\n[5/5] Summarizing...")
-    summary = summarize(full_arabic)
+    try:
+        summary = summarize(full_arabic)
+    except Exception as exc:
+        if _is_content_filter(exc):
+            print("      [CHAT FILTER] summarize skipped — no AI summary for this interview.")
+            summary = {}
+            chat_filter_partial = True
+        else:
+            raise
     print(f"\n--- SUMMARY ---\n{summary.get('summary_en', summary)}\n")
 
     # Routing
@@ -327,9 +412,12 @@ def run_pipeline(
         "contributor": contributor_name,
         "claimed_village": claimed_village,
         "claimed_year": claimed_year,
-        "status": "needs_review" if (routing or {}).get("status") == "needs_review" else "processing",
+        "status": "published",
+        "flagged": chat_filter_partial,
+        "flag_reason": "chat_filter" if chat_filter_partial else None,
         "full_arabic_transcript": full_arabic,
         "full_english_transcript": full_english,
+        "moderation": {"safety": gate.get("safety"), "cultural_awareness": gate.get("cultural_awareness")},
         "summary": summary,
         "routing": routing,
         "segments": segments,

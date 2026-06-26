@@ -28,5 +28,19 @@
     ],
     "photos": [],
     "name_en": "Aain Kfaa"
+  },
+  "10650": {
+    "interviews": [
+      "data\\interviews\\10650\\83f044b3c2a744289a044799114f8a3d_output.json"
+    ],
+    "photos": [],
+    "name_en": "Achrafieh"
+  },
+  "55151": {
+    "interviews": [
+      "data\\interviews\\55151\\028062d970c749f380692e24e2a3c9f1_output.json"
+    ],
+    "photos": [],
+    "name_en": "Khirbet Rouha"
   }
 }

@@ -361,8 +361,9 @@ def process_photo(
         print("\n[+] Placing... skipped (no GeoJSON path provided)")
 
     # Assemble record
-    status_map = {"accept": "published", "flag": "needs_review", "reject": "rejected"}
-    status = status_map.get(verification["decision"], "needs_review")
+    decision = verification["decision"]
+    status = "rejected" if decision == "reject" else "published"
+    flagged = decision == "flag"
 
     record = {
         "contributor": contributor_name,
@@ -377,6 +378,8 @@ def process_photo(
         "tags_ar": tags["tags_ar"],
         "routing": routing,
         "status": status,
+        "flagged": flagged,
+        "flag_reason": "verification_flag" if flagged else None,
     }
 
     out = image_path.rsplit(".", 1)[0] + "_photo_output.json"

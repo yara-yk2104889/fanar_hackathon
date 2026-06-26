@@ -18,6 +18,7 @@ export interface Interview {
   segments: Segment[]
   filePath?: string
   mediaUrl?: string
+  flagged?: boolean
 }
 
 export interface Photo {
@@ -32,6 +33,7 @@ export interface Photo {
   imageUrl?: string
   lat?: number
   lng?: number
+  flagged?: boolean
 }
 
 export interface PlaceData {
@@ -72,6 +74,7 @@ export interface ApiInterview {
   segments?: ApiSegment[]
   _file_path?: string
   media_url?: string
+  flagged?: boolean
 }
 
 export interface ApiPhoto {
@@ -86,6 +89,7 @@ export interface ApiPhoto {
   image_url?: string
   lat?: number
   lng?: number
+  flagged?: boolean
 }
 
 export interface ApiPlaceResponse {
