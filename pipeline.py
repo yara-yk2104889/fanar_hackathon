@@ -145,25 +145,30 @@ Return ONLY valid JSON — no markdown, no explanation.
 }"""
 
 def summarize(full_arabic: str) -> dict:
-    resp = requests.post(
-        f"{BASE}/chat/completions",
-        headers=AUTH_JSON,
-        json={
-            "model": "Fanar-C-2-27B",
-            "messages": [
-                {"role": "system", "content": SUMMARY_PROMPT},
-                {"role": "user", "content": f"Full Arabic transcript:\n{full_arabic}"},
-            ],
-        },
-        timeout=90,
-    )
-    resp.raise_for_status()
-    raw = resp.json()["choices"][0]["message"]["content"]
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", raw, re.DOTALL)
-        return json.loads(m.group()) if m else {"_raw": raw}
+    payload = {
+        "model": "Fanar-C-2-27B",
+        "messages": [
+            {"role": "system", "content": SUMMARY_PROMPT},
+            {"role": "user", "content": f"Full Arabic transcript:\n{full_arabic}"},
+        ],
+    }
+    for attempt in range(2):
+        resp = requests.post(f"{BASE}/chat/completions", headers=AUTH_JSON, json=payload, timeout=90)
+        resp.raise_for_status()
+        raw = resp.json()["choices"][0]["message"]["content"]
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            m = re.search(r"\{.*\}", raw, re.DOTALL)
+            if m:
+                try:
+                    return json.loads(m.group())
+                except json.JSONDecodeError:
+                    pass
+            if attempt == 0:
+                print("      [WARN] summarize returned malformed JSON — retrying...")
+                continue
+    return {"_raw": raw}
 
 
 # ── Routing: match extracted places to Lebanese cadasters ──────────────────

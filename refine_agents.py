@@ -23,7 +23,7 @@ AUTH_JSON = {"Authorization": f"Bearer {FANAR_KEY}", "Content-Type": "applicatio
 MODEL = "Fanar-C-2-27B"
 
 
-def _chat_json(system: str, user: str, timeout: int = 60) -> dict:
+def _chat_json(system: str, user: str, timeout: int = 120) -> dict:
     """Call Fanar chat and parse a JSON object out of the reply."""
     resp = requests.post(
         f"{BASE}/chat/completions",

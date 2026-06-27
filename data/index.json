@@ -1,7 +1,7 @@
 {
   "72111": {
     "interviews": [
-      "data\\interviews\\72111\\926b3da7f20c4cdaa48e21b5ef7293c1_output.json"
+      "data\\interviews\\72111\\4f5f61ca4053426ea4b14ccd7d1e82d3_output.json"
     ],
     "photos": [],
     "name_en": "Bent Jbayl"
@@ -16,5 +16,12 @@
   "unrouted": {
     "interviews": [],
     "photos": []
+  },
+  "23413": {
+    "interviews": [],
+    "photos": [
+      "data\\photos\\23413\\81c015e701dd49b6bda066f8105c6571_photo_output.json"
+    ],
+    "name_en": "Deir El-Qamar"
   }
 }
