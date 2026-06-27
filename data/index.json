@@ -23,5 +23,12 @@
       "data\\photos\\23413\\81c015e701dd49b6bda066f8105c6571_photo_output.json"
     ],
     "name_en": "Deir El-Qamar"
+  },
+  "55157": {
+    "interviews": [
+      "data\\interviews\\55157\\49f64fcfba304b4fa9bf22e9c776fb03_output.json"
+    ],
+    "photos": [],
+    "name_en": "Rafid Rachaiya"
   }
 }
