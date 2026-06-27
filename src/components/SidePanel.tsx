@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Interview, Photo, PlaceClickInfo, PlaceData, Segment } from '../types'
+import type { EvidenceEntry, Interview, Photo, PlaceClickInfo, PlaceData, Segment } from '../types'
 
 interface Props {
   info: PlaceClickInfo | null
@@ -227,6 +227,9 @@ function InterviewCard({
             <p className="ar" dir="rtl">{iv.summaryAr}</p>
           </div>
 
+          {/* Verifiable sources */}
+          <VerifiableSources evidence={iv.evidence} />
+
           {/* Transcript segments */}
           {iv.segments.length > 0 && (
             <div style={{ marginTop: '0.85rem' }}>
@@ -238,6 +241,58 @@ function InterviewCard({
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function VerifiableSources({ evidence }: { evidence?: EvidenceEntry[] }) {
+  if (!evidence || evidence.length === 0) return null
+
+  const links = evidence
+    .filter(e => e.verdict === 'confirmed' || e.verdict === 'partially_supported')
+    .flatMap(e => e.sources.filter(s => s.url))
+
+  if (links.length === 0) return null
+
+  return (
+    <div style={{
+      marginTop: '0.9rem',
+      padding: '0.65rem 0.75rem',
+      background: 'rgba(47, 93, 80, 0.05)',
+      border: '1px solid rgba(47, 93, 80, 0.15)',
+      borderRadius: 7,
+    }}>
+      <div style={{
+        fontSize: '0.68rem',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.07em',
+        color: 'var(--sage)',
+        marginBottom: '0.45rem',
+      }}>
+        Verifiable Sources
+      </div>
+      {links.map((s, i) => (
+        <a
+          key={i}
+          href={s.url!}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'block',
+            fontSize: '0.8rem',
+            color: 'var(--cedar, #5c2e0e)',
+            textDecoration: 'none',
+            marginBottom: i < links.length - 1 ? '0.25rem' : 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={s.url!}
+        >
+          ↗ {s.title || s.url}
+        </a>
+      ))}
     </div>
   )
 }

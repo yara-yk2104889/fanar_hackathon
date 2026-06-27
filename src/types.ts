@@ -6,6 +6,23 @@ export interface Segment {
   themes: string[]
 }
 
+export interface EvidenceSource {
+  title: string
+  url: string | null
+}
+
+export interface EvidenceEntry {
+  claim_en: string
+  claim_ar: string
+  type: string
+  verdict: 'confirmed' | 'partially_supported' | 'no_public_record' | 'contradicted'
+  confidence: 'high' | 'medium' | 'low'
+  source: string | null
+  sources: EvidenceSource[]
+  note: string
+  possibly_sole_record?: boolean
+}
+
 export interface Interview {
   id: string
   contributor: string
@@ -19,6 +36,7 @@ export interface Interview {
   filePath?: string
   mediaUrl?: string
   flagged?: boolean
+  evidence?: EvidenceEntry[]
 }
 
 export interface Photo {
@@ -75,6 +93,7 @@ export interface ApiInterview {
   _file_path?: string
   media_url?: string
   flagged?: boolean
+  evidence?: EvidenceEntry[]
 }
 
 export interface ApiPhoto {

@@ -30,5 +30,36 @@
     ],
     "photos": [],
     "name_en": "Rafid Rachaiya"
+  },
+  "10150": {
+    "interviews": [],
+    "photos": [
+      "data\\photos\\10150\\a702a0af24d94117af4eed2887a3d4db_photo_output.json"
+    ],
+    "name_en": "Ras Beyrouth"
+  },
+  "26111": {
+    "interviews": [],
+    "photos": [
+      "data\\photos\\26111\\93748cf28e4349f3805ebd59e974d32e_photo_output.json"
+    ],
+    "name_en": "Jbayl"
+  },
+  "73250": {
+    "interviews": [],
+    "photos": [],
+    "name_en": "Meiss Ej-Jabal"
+  },
+  "32143": {
+    "interviews": [
+      "data\\interviews\\32143\\5e014e32356a4a3296a563fa9190fea2_output.json"
+    ],
+    "photos": [],
+    "name_en": "Aaba"
+  },
+  "35191": {
+    "interviews": [],
+    "photos": [],
+    "name_en": "Aakkar El-Aatiqa"
   }
 }

@@ -382,6 +382,26 @@ def run_pipeline(
         all_places.extend(seg["places"])
         print(f"         places={seg['places']} themes={seg['themes']}")
 
+    # Evidence check — runs before summarise so we can block contradicted submissions early
+    print("\n[evidence] Fact-checking claims...")
+    _evidence, _evidence_summary = [], {}
+    try:
+        from evidence_agent import verify_interview, InconsistencyError
+        _cadasters = load_cadasters(cadaster_geojson) if cadaster_geojson and os.path.exists(cadaster_geojson) else []
+        _verified  = verify_interview({"segments": segments, "summary": {}}, cadasters=_cadasters)
+        _evidence  = _verified.get("evidence", [])
+        _evidence_summary = _verified.get("evidence_summary", {})
+
+        # Only block on high-confidence contradictions — novel/unverified submissions pass through
+        contradictions = [e for e in _evidence if e.get("verdict") == "contradicted" and e.get("confidence") == "high"]
+        if contradictions:
+            notes = "; ".join(e.get("note", e.get("claim_en", ""))[:100] for e in contradictions)
+            raise InconsistencyError(notes)
+    except InconsistencyError:
+        raise  # let server catch this and show user message
+    except Exception as exc:
+        print(f"      [WARN] evidence check failed ({exc.__class__.__name__}) — continuing.")
+
     # Step 5
     print("\n[5/5] Summarizing...")
     try:
@@ -433,6 +453,8 @@ def run_pipeline(
         "summary": summary,
         "routing": routing,
         "segments": segments,
+        "evidence": _evidence,
+        "evidence_summary": _evidence_summary,
     }
 
     out = video_path.rsplit(".", 1)[0] + "_output.json"

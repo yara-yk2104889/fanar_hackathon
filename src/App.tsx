@@ -9,6 +9,7 @@ import { API_BASE } from './config'
 import type {
   ApiInterview, ApiPhoto, ApiPlaceResponse,
   Interview, Photo, PlaceClickInfo, PlaceData, SearchResults, SearchPhoto, SearchMoment, Segment,
+  EvidenceEntry,
 } from './types'
 
 // ── Convert API response to local PlaceData format ───────────────────────────
@@ -42,6 +43,7 @@ function convertInterviews(recs: ApiInterview[], info: PlaceClickInfo): Intervie
       filePath: rec._file_path,
       mediaUrl: rec.media_url ? `${API_BASE}${rec.media_url}` : undefined,
       flagged: rec.flagged ?? false,
+      evidence: (rec.evidence ?? []) as EvidenceEntry[],
     }
   })
 }

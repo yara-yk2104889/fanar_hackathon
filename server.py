@@ -269,8 +269,8 @@ def contribute_interview(
         shutil.copyfileobj(file.file, fh)
 
     try:
-        from pipeline import run_pipeline, load_cadasters
-        from evidence_agent import verify_interview
+        from pipeline import run_pipeline
+        from evidence_agent import InconsistencyError
         record = run_pipeline(
             video_path=str(upload_path),
             contributor_name=contributor or "Anonymous",
@@ -279,15 +279,6 @@ def contribute_interview(
             cadaster_geojson=CADASTER_GEOJSON,
         )
         record["contributor_description"] = contributor_description or None
-
-        # Agent fact-check — runs automatically on every upload
-        print("\n[evidence agent] Starting fact-check...")
-        try:
-            cadasters = load_cadasters(CADASTER_GEOJSON) if os.path.exists(CADASTER_GEOJSON) else []
-            record = verify_interview(record, cadasters=cadasters)
-        except Exception as exc:
-            print(f"[evidence agent] failed ({exc}) — continuing without evidence", file=sys.stderr)
-
         record["status"] = "published"
 
         # Move uploaded media to permanent storage before saving the record
@@ -308,6 +299,8 @@ def contribute_interview(
 
         return record
 
+    except InconsistencyError:
+        raise HTTPException(409, "There are inconsistencies in this submission. Please review and try again.")
     except RuntimeError as exc:
         if "QUOTA_EXHAUSTED" in str(exc):
             raise HTTPException(503, "Fanar API quota exhausted — please try again later.")
