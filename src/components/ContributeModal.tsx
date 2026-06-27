@@ -194,19 +194,26 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
       return
     }
 
-    // Validate required fields for interviews
+    // Validate required fields
+    const errs: Record<string, string> = {}
     if (utype === 'video') {
-      const errs: Record<string, string> = {}
       if (!selectedVillage)
         errs.village = 'Please select a village from the list.'
       if (!yearRef.current?.value.trim())
-        errs.year = 'Year (or range) is required.'
+        errs.year = 'Date (or range) is required.'
       if (!descriptionRef.current?.value.trim())
         errs.description = 'A short description is required.'
-      if (Object.keys(errs).length > 0) {
-        setFieldErrors(errs)
-        return
-      }
+    } else {
+      if (!selectedVillage)
+        errs.village = 'Please select a village from the list.'
+      if (!yearRef.current?.value.trim())
+        errs.year = 'Date (or range) is required.'
+      if (!captionRef.current?.value.trim())
+        errs.description = 'A short description is required.'
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs)
+      return
     }
     setFieldErrors({})
 
@@ -398,8 +405,7 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
             <div className="form-field">
               <label className="form-label">
                 <span className="ar">القرية</span> Village / Town
-                {utype === 'video' && <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>}
-                {utype === 'photo' && <small style={{ color: 'var(--muted)' }}> (optional)</small>}
+                <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>
               </label>
               <VillageSearch
                 value={selectedVillage}
@@ -410,15 +416,14 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
 
             <div className="form-field">
               <label className="form-label">
-                <span className="ar">السنة</span> Year{utype === 'video' ? '' : ' (approximate)'}
-                {utype === 'video' && <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>}
-                {utype === 'photo' && <small style={{ color: 'var(--muted)' }}> (optional)</small>}
+                <span className="ar">التاريخ</span> Date
+                <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>
               </label>
               <input
                 ref={yearRef}
                 className="form-input"
                 type="text"
-                placeholder={utype === 'video' ? 'e.g. 1975 or 1980–1990' : 'e.g. 1975'}
+                placeholder="e.g. 1975 or 1980–1990 if unsure"
                 style={fieldErrors.year ? { borderColor: '#c0392b' } : undefined}
                 onChange={() => fieldErrors.year && setFieldErrors(e => ({ ...e, year: '' }))}
               />
@@ -445,11 +450,17 @@ export default function ContributeModal({ open, onClose, onSuccess }: Props) {
             {utype === 'photo' && (
               <div className="form-field">
                 <label className="form-label">
-                  <span className="ar">وصف</span> Caption{' '}
-                  <small style={{ color: 'var(--muted)' }}>(optional)</small>
+                  <span className="ar">وصف</span> Short description
+                  <span style={{ color: '#c0392b', marginLeft: 3 }}>*</span>
                 </label>
-                <textarea ref={captionRef} className="form-textarea"
-                  placeholder="Describe what's shown, when and where it was taken…" />
+                <textarea
+                  ref={captionRef}
+                  className="form-textarea"
+                  placeholder="Describe what's shown — who, what, where, and when if known…"
+                  style={fieldErrors.description ? { borderColor: '#c0392b' } : undefined}
+                  onChange={() => fieldErrors.description && setFieldErrors(e => ({ ...e, description: '' }))}
+                />
+                {fieldErrors.description && <p style={{ color: '#c0392b', fontSize: '0.78rem', margin: '0.2rem 0 0' }}>{fieldErrors.description}</p>}
               </div>
             )}
 

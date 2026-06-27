@@ -265,6 +265,8 @@ def verify_photo(image_path: str, description: str, inspector: dict,
         "confidence": confidence,
         "reasons": reasons,
         "moderation_passed": mod_passed,
+        "moderation_safety": moderation.get("safety"),
+        "moderation_cultural_awareness": moderation.get("cultural_awareness"),
         "visual_verdict": visual_verdict,
         "consistency_verdict": consistency_verdict,
     }
@@ -337,8 +339,10 @@ def process_photo(
     routing = None
     if cadaster_geojson and os.path.exists(cadaster_geojson):
         print("\n[+] Placing...")
+        from pipeline import load_cadasters, route
+        cadasters = load_cadasters(cadaster_geojson)
         context_places = inspector.get("arabic_text_seen", [])
-        val = validate_places(claimed_village, context_places, description[:1000])
+        val = validate_places(claimed_village, context_places, description[:1000], cadasters=cadasters)
         # Contributor's typed village always goes first; don't let the LLM discard it
         if claimed_village:
             extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
@@ -350,8 +354,6 @@ def process_photo(
         print(f"      anchor={anchor} | validate_places primary={val.get('primary_anchor')}")
 
         if anchor:
-            from pipeline import load_cadasters, route
-            cadasters = load_cadasters(cadaster_geojson)
             routing = route(anchor, [], cadasters)
             routing["place_validation"] = val
             print(f"      status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
@@ -374,6 +376,10 @@ def process_photo(
         "description": description,
         "inspector": inspector,
         "verification": verification,
+        "moderation": {
+            "safety": verification.get("moderation_safety"),
+            "cultural_awareness": verification.get("moderation_cultural_awareness"),
+        },
         "tags_en": tags["tags_en"],
         "tags_ar": tags["tags_ar"],
         "routing": routing,

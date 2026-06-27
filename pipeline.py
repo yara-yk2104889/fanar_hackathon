@@ -391,7 +391,8 @@ def run_pipeline(
     if cadaster_geojson and os.path.exists(cadaster_geojson):
         print("[+] Routing to Lebanese cadaster...")
         context = " ".join(s["arabic"] for s in segments[:4])
-        val = validate_places(claimed_village, all_places, context)
+        cadasters = load_cadasters(cadaster_geojson)
+        val = validate_places(claimed_village, all_places, context, cadasters=cadasters)
         # Always try the contributor's typed village first — do not let the
         # LLM validator discard it.  AI-extracted places are appended after.
         if claimed_village:
@@ -401,7 +402,6 @@ def run_pipeline(
             anchor = [val["primary_anchor"]]
         else:
             anchor = val.get("lebanese_localities") or list(dict.fromkeys(all_places))
-        cadasters = load_cadasters(cadaster_geojson)
         routing = route(anchor, segments, cadasters)
         routing["place_validation"] = val
         print(f"    status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")

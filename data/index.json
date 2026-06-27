@@ -1,1 +1,16 @@
-{}
+{
+  "72111": {
+    "interviews": [
+      "data\\interviews\\72111\\926b3da7f20c4cdaa48e21b5ef7293c1_output.json"
+    ],
+    "photos": [],
+    "name_en": "Bent Jbayl"
+  },
+  "53111": {
+    "interviews": [],
+    "photos": [
+      "data\\photos\\53111\\bd415b916f1c4c0fbc77b56ce0305dba_photo_output.json"
+    ],
+    "name_en": "Baalbek"
+  }
+}

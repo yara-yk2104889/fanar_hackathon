@@ -358,21 +358,11 @@ function PhotoCard({ ph, onDelete, onZoom }: { ph: Photo; onDelete?: () => void;
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-                {onZoom && (
-                  <button
-                    onClick={() => { setOpen(false); onZoom() }}
-                    style={{ background: 'var(--sage)', color: '#fff', border: 'none', borderRadius: 6, padding: '0.45rem 0.9rem', fontSize: '0.8rem', cursor: 'pointer' }}
-                  >
-                    📍 Zoom to location
-                  </button>
-                )}
-                {onDelete && (
-                  <div onClick={e => e.stopPropagation()}>
-                    <DeleteBtn onDelete={() => { setOpen(false); onDelete() }} />
-                  </div>
-                )}
-              </div>
+              {onDelete && (
+                <div style={{ marginTop: '1rem' }} onClick={e => e.stopPropagation()}>
+                  <DeleteBtn onDelete={() => { setOpen(false); onDelete() }} />
+                </div>
+              )}
             </div>
           </div>
         </div>
