@@ -37,7 +37,7 @@ def _encode_image(image_path: str) -> tuple:
     return b64, mime
 
 
-def _vision(image_path: str, prompt: str, timeout: int = 60) -> str:
+def _vision(image_path: str, prompt: str, timeout: int = 120) -> str:
     """Call Fanar-Oryx-IVU-2 with an image + text prompt. Retries on 429 with backoff."""
     import time
     b64, mime = _encode_image(image_path)
@@ -69,7 +69,7 @@ def _vision_json(image_path: str, prompt: str, timeout: int = 60) -> dict:
     return _parse_json(_vision(image_path, prompt, timeout))
 
 
-def _chat_json(system: str, user: str, timeout: int = 60) -> dict:
+def _chat_json(system: str, user: str, timeout: int = 120) -> dict:
     resp = requests.post(
         f"{BASE}/chat/completions",
         headers=AUTH_JSON,
@@ -313,52 +313,73 @@ def process_photo(
 
     # Step 1: Describe
     print("\n[1/4] Describing...")
-    description = describe_photo(image_path, contributor_caption)
-    print(f"      {description[:200]}...")
+    try:
+        description = describe_photo(image_path, contributor_caption)
+        print(f"      {description[:200]}...")
+    except Exception as exc:
+        print(f"      [WARN] describe failed ({exc.__class__.__name__}) — using caption as description.")
+        description = contributor_caption or ""
 
     # Step 2: Inspect
     print("\n[2/4] Inspecting...")
-    inspector = inspect_photo(image_path)
-    print(f"      scene={inspector.get('scene_type')} | era={inspector.get('estimated_era')}")
-    print(f"      features={inspector.get('features')}")
+    try:
+        inspector = inspect_photo(image_path)
+        print(f"      scene={inspector.get('scene_type')} | era={inspector.get('estimated_era')}")
+        print(f"      features={inspector.get('features')}")
+    except Exception as exc:
+        print(f"      [WARN] inspect failed ({exc.__class__.__name__}) — using empty inspector.")
+        inspector = {"scene_type": "other", "features": [], "arabic_text_seen": [], "cultural_markers": [], "estimated_era": "unknown"}
 
     # Step 3: Tag
     print("\n[3/4] Tagging...")
-    tags = tag_photo(description, inspector)
-    print(f"      tags_en={tags['tags_en']}")
-    print(f"      tags_ar={tags['tags_ar']}")
+    try:
+        tags = tag_photo(description, inspector)
+        print(f"      tags_en={tags['tags_en']}")
+        print(f"      tags_ar={tags['tags_ar']}")
+    except Exception as exc:
+        print(f"      [WARN] tag failed ({exc.__class__.__name__}) — using empty tags.")
+        tags = {"tags_en": [], "tags_ar": []}
 
     # Step 4: Verify
     print("\n[4/4] Verifying...")
-    verification = verify_photo(image_path, description, inspector, contributor_caption, claimed_year)
-    print(f"      decision={verification['decision']} | confidence={verification['confidence']}")
-    if verification["reasons"]:
-        print(f"      reasons={verification['reasons']}")
+    try:
+        verification = verify_photo(image_path, description, inspector, contributor_caption, claimed_year)
+        print(f"      decision={verification['decision']} | confidence={verification['confidence']}")
+        if verification["reasons"]:
+            print(f"      reasons={verification['reasons']}")
+    except Exception as exc:
+        print(f"      [WARN] verify failed ({exc.__class__.__name__}) — defaulting to flag for manual review.")
+        verification = {"decision": "flag", "confidence": "low", "reasons": [str(exc)],
+                        "moderation_passed": True, "moderation_safety": None,
+                        "moderation_cultural_awareness": None,
+                        "visual_verdict": "unknown", "consistency_verdict": "unknown"}
 
     # Place (uses text model — contributor village is the sole anchor)
     routing = None
     if cadaster_geojson and os.path.exists(cadaster_geojson):
         print("\n[+] Placing...")
-        from pipeline import load_cadasters, route
-        cadasters = load_cadasters(cadaster_geojson)
-        context_places = inspector.get("arabic_text_seen", [])
-        val = validate_places(claimed_village, context_places, description[:1000], cadasters=cadasters)
-        # Contributor's typed village always goes first; don't let the LLM discard it
-        if claimed_village:
-            extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
-            anchor = [claimed_village] + extras
-        elif val.get("primary_anchor"):
-            anchor = [val["primary_anchor"]]
-        else:
-            anchor = []
-        print(f"      anchor={anchor} | validate_places primary={val.get('primary_anchor')}")
-
-        if anchor:
-            routing = route(anchor, [], cadasters)
-            routing["place_validation"] = val
-            print(f"      status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
-        else:
-            routing = {"status": "no_anchor", "note": "no village provided by contributor"}
+        try:
+            from pipeline import load_cadasters, route
+            cadasters = load_cadasters(cadaster_geojson)
+            context_places = inspector.get("arabic_text_seen", [])
+            val = validate_places(claimed_village, context_places, description[:1000], cadasters=cadasters)
+            # Contributor's typed village always goes first; don't let the LLM discard it
+            if claimed_village:
+                extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
+                anchor = [claimed_village] + extras
+            elif val.get("primary_anchor"):
+                anchor = [val["primary_anchor"]]
+            else:
+                anchor = []
+            print(f"      anchor={anchor} | validate_places primary={val.get('primary_anchor')}")
+            if anchor:
+                routing = route(anchor, [], cadasters)
+                routing["place_validation"] = val
+                print(f"      status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
+            else:
+                routing = {"status": "no_anchor", "note": "no village provided by contributor"}
+        except Exception as exc:
+            print(f"      [WARN] placing failed ({exc.__class__.__name__}) — continuing unplaced.")
     else:
         print("\n[+] Placing... skipped (no GeoJSON path provided)")
 

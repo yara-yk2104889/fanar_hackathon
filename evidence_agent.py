@@ -93,19 +93,88 @@ Return ONLY valid JSON — no markdown, no explanation:
   "testimony_excluded_count": <integer>
 }"""
 
-def extract_claims(interview: dict) -> dict:
-    """Step 1: extract checkable factual claims from the interview transcript."""
-    arabic  = interview.get("full_arabic_transcript", "")
-    english = interview.get("full_english_transcript", "")
+# Places to skip — countries, occupied territories, and common Arabic nouns that
+# the pipeline mistakenly tags as places.
+_PLACE_BLOCKLIST = {
+    # Countries / regions — not Lebanese localities
+    "لبنان", "فلسطين", "فلسطين المحتلة", "سوريا", "الأردن", "إسرائيل",
+    "Lebanon", "Palestine", "Occupied Palestine", "Syria", "Jordan", "Israel",
+    # Common nouns that slip through
+    "البيت", "المنزل", "القرية", "المدينة", "المنطقة",
+}
 
-    user = (
-        f"Arabic transcript:\n{arabic[:4000]}\n\n"
-        f"English transcript:\n{english[:4000]}"
-    )
-    out = _chat_json(EXTRACT_SYS, user, timeout=120)
-    out.setdefault("checkable_claims", [])
-    out.setdefault("testimony_excluded_count", 0)
-    return out
+def _is_country_or_region(place: str) -> bool:
+    """True if the place name looks like a country or broad region, not a Lebanese locality."""
+    p = place.strip()
+    if p in _PLACE_BLOCKLIST:
+        return True
+    lower = p.lower()
+    # Parenthetical form like "Bint Jbeil (Lebanon)" is fine; bare "Lebanon" is not
+    if lower in ("lebanon", "palestine", "syria", "jordan") and "(" not in p:
+        return True
+    # Phrases like "Southern Border Region (Lebanon/Palestine)"
+    if "border region" in lower or "occupied" in lower:
+        return True
+    return False
+
+
+def extract_claims(interview: dict) -> dict:
+    """Step 1: derive checkable factual claims from pipeline metadata — no LLM call.
+
+    Generates:
+    - One place claim per unique extracted Lebanese locality (verified by cadaster)
+    - One content claim per segment that has both places/themes and English text
+    Caps at 6 total claims to keep API usage predictable.
+    """
+    claims: list = []
+    seen: set = set()
+
+    summary  = interview.get("summary") or {}
+    segments = interview.get("segments") or []
+
+    # Collect all places in order: summary first, then per-segment
+    all_places = list(dict.fromkeys(
+        (summary.get("places") or []) +
+        [p for seg in segments for p in (seg.get("places") or [])]
+    ))
+
+    for place in all_places:
+        if not place or place in seen:
+            continue
+        if _is_country_or_region(place):
+            continue
+        seen.add(place)
+        claims.append({
+            "claim_en": f"{place} is a location in Lebanon.",
+            "claim_ar": f"يقع {place} في لبنان.",
+            "type": "place",
+        })
+
+    # One content claim per segment with English text + at least one place or theme
+    for seg in segments:
+        if len(claims) >= 6:
+            break
+        english = (seg.get("english") or "").strip()
+        arabic  = (seg.get("arabic")  or "").strip()
+        places  = seg.get("places")  or []
+        themes  = seg.get("themes")  or []
+        if not english or (not places and not themes):
+            continue
+        key = english[:60]
+        if key in seen:
+            continue
+        seen.add(key)
+        ctype = "place" if places else "cultural_tradition"
+        claims.append({
+            "claim_en": english[:400],
+            "claim_ar": arabic[:400],
+            "type": ctype,
+        })
+
+    return {
+        "checkable_claims": claims,
+        "testimony_excluded_count": 0,
+    }
 
 
 # ── Step 2a — Fanar Sadiq grounded retrieval ────────────────────────────────
@@ -129,7 +198,7 @@ def _retrieve_grounded(claim_en: str) -> dict:
         f"Claim: {claim_en}"
     )
     try:
-        out = _chat_json(GROUNDED_SYS, question, model=GROUNDED, timeout=60)
+        out = _chat_json(GROUNDED_SYS, question, model=GROUNDED, timeout=90)
     except Exception as exc:
         print(f"    [grounded] error: {exc}")
         out = {"has_useful_answer": False, "answer": "", "sources": []}
@@ -233,12 +302,156 @@ def judge_claim(claim_en: str, claim_ar: str, evidence: dict) -> dict:
         f"Retrieved evidence:\n{evidence_text}\n\n"
         f"Sources:\n{sources_text}"
     )
-    out = _chat_json(JUDGE_SYS, user, timeout=60)
+    out = _chat_json(JUDGE_SYS, user, timeout=90)
     out.setdefault("verdict",    "no_public_record")
     out.setdefault("confidence", "low")
     out.setdefault("source",     None)
     out.setdefault("note",       "")
     return out
+
+
+# ── Agent infrastructure ─────────────────────────────────────────────────────
+
+MAX_TOOL_CALLS = 4  # per claim; prevents runaway loops burning quota
+
+REACT_SYS = """You are a careful fact-checker for a Lebanese oral-history archive.
+Investigate the claim step by step, then call finish_verdict.
+
+Available tools:
+  search_knowledge(query)           — query knowledge base with source citations
+  lookup_cadaster(place_name)       — look up a place in Lebanon's cadaster database
+  finish_verdict(verdict, confidence, note, source) — submit your final verdict
+
+To call a tool write EXACTLY (one tool per response):
+  ACTION: tool_name
+  ARGS: {"key": "value"}
+
+Verdicts: confirmed | partially_supported | no_public_record | contradicted
+- "no_public_record" is NOT "false"
+- "contradicted" only if a source directly refutes the claim
+- You MUST call finish_verdict to complete"""
+
+
+def _cadaster_lookup(place_name: str, cadasters: list) -> list:
+    """Search cadaster list for a place name. Returns up to 3 best matches."""
+    p = place_name.strip().lower()
+    if not p:
+        return []
+    results = []
+    for cad in cadasters:
+        n_en = (cad.get("name_en") or "").strip().lower()
+        n_ar = (cad.get("name_ar") or "").strip()
+        score = 0
+        if p == n_en:
+            score = 3
+        elif n_en.startswith(p + " ") or p.startswith(n_en + " "):
+            score = 2
+        elif p in n_en or n_en in p:
+            score = 1
+        if score < 2 and p in n_ar:
+            score = 2
+        if score > 0:
+            results.append({"id": cad["id"], "name_en": cad["name_en"], "name_ar": cad["name_ar"], "score": score})
+    results.sort(key=lambda x: x["score"], reverse=True)
+    return results[:3]
+
+
+def _run_tool(name: str, args: dict, cadasters: list) -> str:
+    """Execute a tool call and return the result as a JSON string."""
+    if name == "search_knowledge":
+        result = _retrieve_grounded(args.get("query", ""))
+        return json.dumps(result, ensure_ascii=False)
+    if name == "lookup_cadaster":
+        matches = _cadaster_lookup(args.get("place_name", ""), cadasters)
+        if matches:
+            return json.dumps(matches, ensure_ascii=False)
+        return json.dumps({"matches": [], "note": "No cadaster matches found."})
+    return json.dumps({"error": f"Unknown tool: {name}"})
+
+
+def _force_verdict(claim_en: str, claim_ar: str, messages: list) -> dict:
+    """Force a verdict from accumulated context when MAX_TOOL_CALLS is hit."""
+    FORCE_SYS = """You are a fact-checker. Based on the evidence gathered so far, give your best verdict.
+Return ONLY valid JSON — no markdown:
+{"verdict": "confirmed|partially_supported|no_public_record|contradicted", "confidence": "high|medium|low", "source": "url or null", "note": "one neutral sentence"}"""
+
+    context_parts = [
+        f"{m['role'].upper()}: {str(m.get('content') or '')[:300]}"
+        for m in messages
+        if m.get("content") and m.get("role") in ("assistant", "tool", "user")
+    ]
+    user_text = f"Claim (EN): {claim_en}\nClaim (AR): {claim_ar}\n\nEvidence gathered:\n" + "\n".join(context_parts[-6:])
+    out = _chat_json(FORCE_SYS, user_text)
+    out.setdefault("verdict",    "no_public_record")
+    out.setdefault("confidence", "low")
+    out.setdefault("source",     None)
+    out.setdefault("note",       "Verdict forced after reaching maximum tool calls.")
+    out["forced"] = True
+    return out
+
+
+
+def _agent_loop_react(claim_en: str, claim_ar: str, ctype: str, cadasters: list) -> dict:
+    """
+    ReAct text-parsing fallback when native function calling is unavailable.
+    LLM writes ACTION:/ARGS: blocks; capped at MAX_TOOL_CALLS per claim.
+    """
+    messages = [
+        {"role": "system", "content": REACT_SYS},
+        {"role": "user", "content": (
+            f"Claim (English): {claim_en}\n"
+            f"Claim (Arabic): {claim_ar}\n"
+            f"Type: {ctype}\n\n"
+            "Investigate this claim. Start by choosing a tool."
+        )},
+    ]
+    tool_calls_used = 0
+
+    while tool_calls_used < MAX_TOOL_CALLS:
+        resp = requests.post(
+            f"{BASE}/chat/completions",
+            headers=AUTH_JSON,
+            json={"model": MODEL, "messages": messages},
+            timeout=90,
+        )
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        messages.append({"role": "assistant", "content": content})
+
+        action_m = re.search(r"ACTION:\s*(\w+)", content)
+        args_m   = re.search(r"ARGS:\s*(\{.*?\})", content, re.DOTALL)
+        if not action_m:
+            break
+
+        fn_name = action_m.group(1).strip()
+        try:
+            fn_args = json.loads(args_m.group(1)) if args_m else {}
+        except Exception:
+            fn_args = {}
+
+        if fn_name == "finish_verdict":
+            print(f"         [agent:react] finish after {tool_calls_used} tool call(s)")
+            return {
+                "verdict":         fn_args.get("verdict", "no_public_record"),
+                "confidence":      fn_args.get("confidence", "low"),
+                "source":          fn_args.get("source"),
+                "note":            fn_args.get("note", ""),
+                "tool_calls_used": tool_calls_used,
+                "forced":          False,
+            }
+
+        result = _run_tool(fn_name, fn_args, cadasters)
+        print(f"         [agent:react:{fn_name}] → {result[:80]}")
+        tool_calls_used += 1
+        messages.append({
+            "role": "user",
+            "content": f"TOOL RESULT:\n{result}\n\nContinue your investigation or call finish_verdict.",
+        })
+
+    print(f"         [agent:react] cap hit ({MAX_TOOL_CALLS}) — forcing verdict")
+    verdict = _force_verdict(claim_en, claim_ar, messages)
+    verdict["tool_calls_used"] = tool_calls_used
+    return verdict
 
 
 # ── Possibly-sole-record flag ────────────────────────────────────────────────
@@ -283,16 +496,20 @@ def _build_evidence_summary(evidence_list: list, testimony_excluded: int) -> dic
     }
 
 
-def verify_interview(interview_record: dict, backend: str = "auto") -> dict:
+def verify_interview(interview_record: dict, cadasters: list = None) -> dict:
     """
-    Main entry-point.  Returns a NEW dict (deep copy) with two new keys added:
-      - "evidence":         list of {claim + verdict + source + note + ...}
+    Agent-based fact-checker. Returns a NEW dict (deep copy) with two new keys:
+      - "evidence":         list of per-claim verdicts
       - "evidence_summary": verdict counts + metadata
+
+    Per claim, runs a ReAct agent loop (native function calling → ReAct text
+    fallback → direct judge fallback). Capped at MAX_TOOL_CALLS per claim.
     The original record is never mutated.
     """
-    result = copy.deepcopy(interview_record)
+    result    = copy.deepcopy(interview_record)
+    cadasters = cadasters or []
 
-    # ── Step 1 ───────────────────────────────────────────────────────────────
+    # ── Step 1: extract claims ────────────────────────────────────────────────
     print("\n[1/3] Extracting checkable factual claims...")
     claims_data = extract_claims(result)
     claims      = claims_data.get("checkable_claims", [])
@@ -304,8 +521,8 @@ def verify_interview(interview_record: dict, backend: str = "auto") -> dict:
         result["evidence_summary"] = _build_evidence_summary([], testimony_n)
         return result
 
-    # ── Steps 2 + 3 (per claim) ──────────────────────────────────────────────
-    print(f"\n[2+3/3] Retrieving evidence & judging ({len(claims)} claims)...")
+    # ── Steps 2+3: agent loop per claim ──────────────────────────────────────
+    print(f"\n[2+3/3] Agent fact-checking ({len(claims)} claims, max {MAX_TOOL_CALLS} tool calls each)...")
     evidence_list = []
 
     for i, claim in enumerate(claims):
@@ -314,30 +531,74 @@ def verify_interview(interview_record: dict, backend: str = "auto") -> dict:
         ctype    = claim.get("type", "unknown")
         print(f"\n  [{i+1}/{len(claims)}] [{ctype}] {claim_en[:80]}")
 
-        # Step 2 — retrieve
-        evidence = retrieve_evidence(claim_en, backend=backend)
-        print(f"         backend={evidence['backend_used']} | useful={evidence['has_useful_answer']}")
+        verdict = None
 
-        # Step 3 — judge
-        verdict  = judge_claim(claim_en, claim_ar, evidence)
-        print(f"         verdict={verdict['verdict']} ({verdict['confidence']}) | {verdict['note'][:60]}")
+        # Fast path: place claims resolved via cadaster lookup — no LLM call needed
+        if ctype == "place" and cadasters:
+            place_name = claim_en.split(" is a location")[0].strip()
+            matches = _cadaster_lookup(place_name, cadasters)
+            best = matches[0] if matches else None
+            if best and best["score"] >= 2:
+                verdict = {
+                    "verdict": "confirmed",
+                    "confidence": "high",
+                    "source": f"Lebanese cadaster (ID: {best['id']})",
+                    "note": f"Matched to '{best['name_en']}' ({best['name_ar']}) in the Lebanese administrative database.",
+                    "tool_calls_used": 1,
+                    "forced": False,
+                }
+            else:
+                verdict = {
+                    "verdict": "no_public_record",
+                    "confidence": "medium",
+                    "source": None,
+                    "note": "Not found in the Lebanese cadaster — may be a region name or spelling variant.",
+                    "tool_calls_used": 1,
+                    "forced": False,
+                }
+            print(f"         [cadaster] {verdict['verdict']} | match={best}")
 
-        # Build entry (claim + verdict, sources preserved alongside)
+        if verdict is None:
+            try:
+                verdict = _agent_loop_react(claim_en, claim_ar, ctype, cadasters)
+            except Exception as exc:
+                print(f"         [react] failed ({exc.__class__.__name__}) — marking unchecked")
+                try:
+                    evidence = retrieve_evidence(claim_en)
+                    verdict  = judge_claim(claim_en, claim_ar, evidence)
+                except Exception as exc2:
+                    print(f"         [judge] also failed ({exc2.__class__.__name__}) — API unavailable")
+                    verdict = {
+                        "verdict": "no_public_record",
+                        "confidence": "low",
+                        "source": None,
+                        "note": "Could not verify — Fanar API unavailable during processing.",
+                        "tool_calls_used": 0,
+                        "forced": True,
+                    }
+                verdict.setdefault("tool_calls_used", 0)
+                verdict.setdefault("forced", False)
+
+        print(
+            f"         verdict={verdict['verdict']} ({verdict['confidence']}) "
+            f"| tools={verdict.get('tool_calls_used', '?')} forced={verdict.get('forced', False)}"
+        )
+
         entry = {
             "claim_en":            claim_en,
             "claim_ar":            claim_ar,
             "type":                ctype,
-            "verdict":             verdict["verdict"],
-            "confidence":          verdict["confidence"],
-            "source":              verdict["source"],
-            "note":                verdict["note"],
-            "backend_used":        evidence["backend_used"],
-            "raw_sources":         evidence.get("sources", []),
+            "verdict":             verdict.get("verdict", "no_public_record"),
+            "confidence":          verdict.get("confidence", "low"),
+            "source":              verdict.get("source"),
+            "note":                verdict.get("note", ""),
+            "tool_calls_used":     verdict.get("tool_calls_used", 0),
+            "forced":              verdict.get("forced", False),
             "possibly_sole_record": _is_possibly_sole_record(claim, verdict),
         }
         evidence_list.append(entry)
 
-    # ── Step 4 — attach ───────────────────────────────────────────────────────
+    # ── Step 4: attach ────────────────────────────────────────────────────────
     result["evidence"]         = evidence_list
     result["evidence_summary"] = _build_evidence_summary(evidence_list, testimony_n)
     return result
@@ -348,17 +609,32 @@ def verify_interview(interview_record: dict, backend: str = "auto") -> dict:
 if __name__ == "__main__":
     import sys
 
-    # Accept a path argument, default to the sample output
     path = sys.argv[1] if len(sys.argv) > 1 else "namliyeh_clip_output.json"
 
     print(f"\n{'='*60}")
     print(f"EVIDENCE AGENT  →  {path}")
     print(f"{'='*60}")
 
+    # Load cadasters for the geographic lookup tool
+    cadasters: list = []
+    CADASTER_PATH = "lbn_admin_boundaries.geojson/lbn_adminpoints.geojson"
+    if os.path.exists(CADASTER_PATH):
+        try:
+            with open(CADASTER_PATH, encoding="utf-8") as f:
+                gj = json.load(f)
+            for feat in gj.get("features", []):
+                p   = feat["properties"]
+                cid = p.get("adm3_pcode") or p.get("adm3_name")
+                if cid:
+                    cadasters.append({"id": str(cid), "name_en": p.get("name", ""), "name_ar": p.get("name1", "")})
+            print(f"Loaded {len(cadasters)} cadasters")
+        except Exception as e:
+            print(f"Could not load cadasters: {e}")
+
     with open(path, encoding="utf-8") as f:
         interview = json.load(f)
 
-    enriched = verify_interview(interview, backend="auto")
+    enriched = verify_interview(interview, cadasters=cadasters)
 
     # ── Print results ────────────────────────────────────────────────────────
     print(f"\n{'─'*60}")

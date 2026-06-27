@@ -269,7 +269,8 @@ def contribute_interview(
         shutil.copyfileobj(file.file, fh)
 
     try:
-        from pipeline import run_pipeline
+        from pipeline import run_pipeline, load_cadasters
+        from evidence_agent import verify_interview
         record = run_pipeline(
             video_path=str(upload_path),
             contributor_name=contributor or "Anonymous",
@@ -278,6 +279,14 @@ def contribute_interview(
             cadaster_geojson=CADASTER_GEOJSON,
         )
         record["contributor_description"] = contributor_description or None
+
+        # Agent fact-check — runs automatically on every upload
+        print("\n[evidence agent] Starting fact-check...")
+        try:
+            cadasters = load_cadasters(CADASTER_GEOJSON) if os.path.exists(CADASTER_GEOJSON) else []
+            record = verify_interview(record, cadasters=cadasters)
+        except Exception as exc:
+            print(f"[evidence agent] failed ({exc}) — continuing without evidence", file=sys.stderr)
 
         record["status"] = "published"
 

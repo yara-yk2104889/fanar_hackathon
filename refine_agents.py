@@ -3,7 +3,7 @@ refine_agents.py
 
 Two correction/validation agents that slot into your existing pipeline.
 
-  Agent 1  refine_segment()   fixes dialect mis-hearings + cultural-term mistranslation
+    refine_segment()   fixes dialect mis-hearings + cultural-term mistranslation
   Agent 2  validate_places()  decides which "places" are real Lebanese localities
 
 Both use Fanar-C-2-27B. Import these into pipeline.py (see the wiring notes at the bottom).

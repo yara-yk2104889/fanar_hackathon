@@ -92,7 +92,7 @@ def translate(arabic: str) -> str:
         f"{BASE}/translations",
         headers=AUTH_JSON,
         json={"model": "Fanar-Shaheen-MT-1", "text": arabic, "langpair": "ar-en", "preprocessing": "default"},
-        timeout=60,
+        timeout=90,
     )
     resp.raise_for_status()
     return resp.json()["text"]
@@ -121,7 +121,7 @@ def extract(arabic: str, english: str) -> dict:
                 {"role": "user", "content": f"Arabic:\n{arabic}\n\nEnglish:\n{english}"},
             ],
         },
-        timeout=60,
+        timeout=120,
     )
     resp.raise_for_status()
     raw = resp.json()["choices"][0]["message"]["content"]
@@ -262,7 +262,7 @@ def route(places: list, segments: list, cadasters: list) -> dict:
                 },
             ],
         },
-        timeout=60,
+        timeout=120,
     )
     resp.raise_for_status()
     raw = resp.json()["choices"][0]["message"]["content"]
@@ -342,16 +342,20 @@ def run_pipeline(
     all_places = []
     for i, seg in enumerate(segments):
         print(f"  [{i+1}/{len(segments)}] {seg['start']:.1f}s – {seg['end']:.1f}s")
-        draft_en = translate(seg["arabic"])
+        try:
+            draft_en = translate(seg["arabic"])
+        except Exception as exc:
+            print(f"      [WARN] translate failed ({exc.__class__.__name__}) — skipping segment.")
+            draft_en = ""
         try:
             ref = refine_segment(seg["arabic"], draft_en)
         except Exception as exc:
             if _is_content_filter(exc):
                 print(f"      [CHAT FILTER] refine_segment skipped on segment {i+1} — using raw text.")
-                ref = {"arabic_clean": seg["arabic"], "english": draft_en, "corrections": [], "low_confidence_spans": []}
                 chat_filter_partial = True
             else:
-                raise
+                print(f"      [WARN] refine_segment failed ({exc.__class__.__name__}) — using raw text.")
+            ref = {"arabic_clean": seg["arabic"], "english": draft_en, "corrections": [], "low_confidence_spans": []}
         seg["arabic_raw"]   = seg["arabic"]
         seg["arabic"]       = ref["arabic_clean"]
         seg["english"]      = ref["english"]
@@ -361,10 +365,10 @@ def run_pipeline(
         except Exception as exc:
             if _is_content_filter(exc):
                 print(f"      [CHAT FILTER] extract skipped on segment {i+1} — no metadata for this segment.")
-                meta = {}
                 chat_filter_partial = True
             else:
-                raise
+                print(f"      [WARN] extract failed ({exc.__class__.__name__}) — no metadata for this segment.")
+            meta = {}
         seg["places"]      = meta.get("places", [])
         seg["people"]      = meta.get("people", [])
         seg["themes"]      = meta.get("themes", [])
@@ -380,31 +384,34 @@ def run_pipeline(
     except Exception as exc:
         if _is_content_filter(exc):
             print("      [CHAT FILTER] summarize skipped — no AI summary for this interview.")
-            summary = {}
             chat_filter_partial = True
         else:
-            raise
+            print(f"      [ERROR] summarize failed ({exc.__class__.__name__}: {exc}) — continuing without summary.")
+        summary = {}
     print(f"\n--- SUMMARY ---\n{summary.get('summary_en', summary)}\n")
 
     # Routing
     routing = None
     if cadaster_geojson and os.path.exists(cadaster_geojson):
         print("[+] Routing to Lebanese cadaster...")
-        context = " ".join(s["arabic"] for s in segments[:4])
-        cadasters = load_cadasters(cadaster_geojson)
-        val = validate_places(claimed_village, all_places, context, cadasters=cadasters)
-        # Always try the contributor's typed village first — do not let the
-        # LLM validator discard it.  AI-extracted places are appended after.
-        if claimed_village:
-            extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
-            anchor = [claimed_village] + extras
-        elif val.get("primary_anchor"):
-            anchor = [val["primary_anchor"]]
-        else:
-            anchor = val.get("lebanese_localities") or list(dict.fromkeys(all_places))
-        routing = route(anchor, segments, cadasters)
-        routing["place_validation"] = val
-        print(f"    status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
+        try:
+            context = " ".join(s["arabic"] for s in segments[:4])
+            cadasters = load_cadasters(cadaster_geojson)
+            val = validate_places(claimed_village, all_places, context, cadasters=cadasters)
+            # Always try the contributor's typed village first — do not let the
+            # LLM validator discard it.  AI-extracted places are appended after.
+            if claimed_village:
+                extras = [p for p in (val.get("lebanese_localities") or []) if p != claimed_village]
+                anchor = [claimed_village] + extras
+            elif val.get("primary_anchor"):
+                anchor = [val["primary_anchor"]]
+            else:
+                anchor = val.get("lebanese_localities") or list(dict.fromkeys(all_places))
+            routing = route(anchor, segments, cadasters)
+            routing["place_validation"] = val
+            print(f"    status={routing.get('status')} | cadaster={routing.get('cadaster_name_en', 'N/A')}")
+        except Exception as exc:
+            print(f"    [ERROR] routing failed ({exc.__class__.__name__}: {exc}) — continuing unrouted.")
 
     full_english = " ".join(s["english"] for s in segments if s.get("english"))
 

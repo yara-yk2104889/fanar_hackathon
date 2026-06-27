@@ -262,16 +262,77 @@
       ]
     }
   ],
-  "evidence": [],
+  "evidence": [
+    {
+      "claim_en": "Bint Jbeil (Lebanon) is a location in Lebanon.",
+      "claim_ar": "يقع Bint Jbeil (Lebanon) في لبنان.",
+      "type": "place",
+      "verdict": "no_public_record",
+      "confidence": "medium",
+      "source": null,
+      "note": "Not found in the Lebanese cadaster — may be a region name or spelling variant.",
+      "tool_calls_used": 1,
+      "forced": false,
+      "possibly_sole_record": true
+    },
+    {
+      "claim_en": "بنت جبيل is a location in Lebanon.",
+      "claim_ar": "يقع بنت جبيل في لبنان.",
+      "type": "place",
+      "verdict": "confirmed",
+      "confidence": "high",
+      "source": "Lebanese cadaster (ID: 72111)",
+      "note": "Matched to 'Bent Jbayl' (بنت جبيل) in the Lebanese administrative database.",
+      "tool_calls_used": 1,
+      "forced": false,
+      "possibly_sole_record": false
+    },
+    {
+      "claim_en": "النملية is a location in Lebanon.",
+      "claim_ar": "يقع النملية في لبنان.",
+      "type": "place",
+      "verdict": "no_public_record",
+      "confidence": "medium",
+      "source": null,
+      "note": "Not found in the Lebanese cadaster — may be a region name or spelling variant.",
+      "tool_calls_used": 1,
+      "forced": false,
+      "possibly_sole_record": true
+    },
+    {
+      "claim_en": "Happy and welcome to you in a new episode of the program, Back to the Namliyeh. Today, the southern destination is on a border area between Lebanon and occupied Palestine, and what could be sweeter than the south and the view of the city of Bint Jbeil? Today, the southern touches and the Bint Jbeili style will create for us more than one thing, such as African tomato sauce and others that we will ",
+      "claim_ar": "سعيدة وأهلا وسهلا بكم في يوم جديد من برنامج العودة إلى النملية، اليوم الوجهة جنوبية على منطقة حدودية بين لبنان وفلسطين المحتلة، وما أحلى من الجنوب ونظرة على مدينة بنت جبيل. اليوم، اللمسات الجنوبية والبنت جبيلية ستصنع لنا أكثر من شيء، مثل بندورة الفراكة الأفريقية وغيرها من الأشياء التي سنتعلمها اليوم من هذه المنطقة الجميلة والوجهة الرائعة لبنان الرائع. ابقوا معنا لحلقة تأخذ العقل ضمن رحلتنا إلى بلد",
+      "type": "place",
+      "verdict": "no_public_record",
+      "confidence": "medium",
+      "source": null,
+      "note": "Not found in the Lebanese cadaster — may be a region name or spelling variant.",
+      "tool_calls_used": 1,
+      "forced": false,
+      "possibly_sole_record": true
+    },
+    {
+      "claim_en": "I would like to welcome Hajjeh Mariana. Now, Hajjeh, you are most welcome, you have graced us and illuminated our Namliyeh program which has been running for five years. You made the decision to start baking bread at home because you felt that people wanted to learn about life, about how to live? That’s why you decided, bravo! People started coming to your house to buy your bread, wrapping it up, ",
+      "claim_ar": "بدي أرحب بالحاجة ماريانا، هلا الحاجة إنّها أهلًا وسهلًا فيكي، شرفتِنا ونورتينا ببرنامج العودة، برنامج عودي إلى النملية خمس سنوات عايشة، أخذت القرار إنك تعملي خبز تحطي بالبيت، حسيتي إن الناس بتعرف المعيشة، المعيشة كيف؟ عشان هيك قررت، الناس برافو صار عندك زبونات بعلبات، يعني بالبيت بيجوا لعندك ياخذوها، يلفونها، يبوسولها، ياخذوها عال يعني بدنا قد عشر حبات، عشرين حبة آخر العجين تبع شو المزيج تستعمليه؟",
+      "type": "place",
+      "verdict": "no_public_record",
+      "confidence": "medium",
+      "source": null,
+      "note": "Not found in the Lebanese cadaster — may be a region name or spelling variant.",
+      "tool_calls_used": 1,
+      "forced": false,
+      "possibly_sole_record": true
+    }
+  ],
   "evidence_summary": {
     "verdict_counts": {
-      "confirmed": 0,
+      "confirmed": 1,
       "partially_supported": 0,
-      "no_public_record": 0,
+      "no_public_record": 4,
       "contradicted": 0
     },
-    "total_claims_checked": 0,
-    "testimony_excluded_count": 10,
-    "possibly_sole_record_count": 0
+    "total_claims_checked": 5,
+    "testimony_excluded_count": 0,
+    "possibly_sole_record_count": 4
   }
 }
