@@ -5,6 +5,8 @@ import SidePanel from './components/SidePanel'
 import SearchOverlay from './components/SearchOverlay'
 import ContributeModal from './components/ContributeModal'
 import ArchiveSidebar from './components/ArchiveSidebar'
+import InheritorPage from './components/InheritorPage'
+import GapMapPage from './components/GapMapPage'
 import { API_BASE } from './config'
 import type {
   ApiInterview, ApiPhoto, ApiPlaceResponse,
@@ -79,7 +81,7 @@ function convertApiPlace(data: ApiPlaceResponse, info: PlaceClickInfo): PlaceDat
 // ── App ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState<'landing' | 'map'>('landing')
+  const [screen, setScreen] = useState<'landing' | 'map' | 'inheritor' | 'gapmap'>('landing')
   const [panelInfo, setPanelInfo] = useState<PlaceClickInfo | null>(null)
   const [panelPlace, setPanelPlace] = useState<PlaceData | null>(null)
   const [placeLoading, setPlaceLoading] = useState(false)
@@ -97,6 +99,7 @@ export default function App() {
   const mapRef = useRef<MapViewHandle>(null)
 
   const handleEnter = useCallback(() => setScreen('map'), [])
+  const handleBackToMap = useCallback(() => setScreen('map'), [])
 
   const handlePlaceClick = useCallback((info: PlaceClickInfo) => {
     setPanelInfo(info)
@@ -254,9 +257,12 @@ export default function App() {
 
   return (
     <>
-      <Landing screen={screen} onEnter={handleEnter} />
+      <Landing screen={screen === 'landing' ? 'landing' : 'map'} onEnter={handleEnter} />
 
-      <div className="app-shell">
+      {screen === 'inheritor' && <InheritorPage onBack={handleBackToMap} />}
+      {screen === 'gapmap'    && <GapMapPage    onBack={handleBackToMap} />}
+
+      <div className="app-shell" style={{ display: screen === 'inheritor' || screen === 'gapmap' ? 'none' : undefined }}>
         <header className="topbar">
           <div className="topbar-logo">
             <span className="ar">ذاكرة</span>
@@ -264,6 +270,12 @@ export default function App() {
             <span className="en">Dhākira</span>
           </div>
           <SearchBar onSearch={handleSearch} loading={searchLoading} />
+          <button className="topbar-contribute" onClick={() => setScreen('inheritor')} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            الوارث · Research
+          </button>
+          <button className="topbar-contribute" onClick={() => setScreen('gapmap')} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            Gap Map
+          </button>
           <button className="topbar-contribute" onClick={() => setContributeOpen(true)}>
             + Contribute
           </button>
